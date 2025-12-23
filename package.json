@@ -1,13 +1,12 @@
 {
   "dependencies": {
     "discord.js": "^14.25.1",
-    "env": "^0.0.2"
+    "dotenv": "^17.2.3"
   },
   "name": "cerealbot",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
-  "devDependencies": {},
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
