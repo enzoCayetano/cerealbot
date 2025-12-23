@@ -1,6 +1,4 @@
 const { Collection, Events } = require('discord.js');
-const Tag = require('../models/Tag');
-const Profile = require('../models/Profile');
 
 module.exports = {
   name: Events.InteractionCreate,
