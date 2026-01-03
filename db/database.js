@@ -5,6 +5,7 @@ const db = new Database('elo.db');
 db.exec(`
     CREATE TABLE IF NOT EXISTS users (
         user_id TEXT PRIMARY KEY,
+        username TEXT,
         elo INTEGER NOT NULL DEFAULT 1000
     );
     
