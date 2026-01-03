@@ -1,5 +1,6 @@
 const { SlashCommandBuilder } = require('discord.js');
 const eloRepo = require('../../db/eloRepo');
+const { sendErrorLog } = require('../../utils/logger');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -33,6 +34,7 @@ module.exports = {
                 content: 'Something went wrong while fetching ELO.',
                 ephemeral: true,
             });
+            await sendErrorLog(interaction.client, 'Manual Elo-Init Command Error', error, interaction.user);
         }
     },
 }
