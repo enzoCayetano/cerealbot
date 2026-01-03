@@ -12,14 +12,16 @@ module.exports = {
         await interaction.deferReply({ ephemeral: true });
 
         const members = await interaction.guild.members.fetch();
-        let inserted = 0;
+        let initialized = 0;
 
-        for (const member of members.values())
+        for (const [memberId, member] of members)
         {
-            const created = eloRepo.ensureUser(member.user.id);
-            if (created) inserted++;
+            if (member.user.bot) continue;
+
+            await eloRepo.ensureUser(member.id);
+            initialized++;
         }
 
-        await interaction.editReply(`Initialize ELO for **${inserted}** users.`);
+        await interaction.editReply(`Initialized ELO for **${initialized}** users.`);
     }
-}
+};
