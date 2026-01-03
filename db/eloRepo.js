@@ -1,12 +1,12 @@
 const db = require('./database');
 
-function ensureUser(userId, username)
+function ensureUser(userId)
 {
     const result = db.prepare(`
-        INSERT INTO users (user_id, username, elo)
-        VALUES (?, ?, 1000)
-        ON CONFLICT(user_id) DO UPDATE SET username = excluded.username
-    `).run(userId, username);
+        INSERT INTO users (user_id)
+        VALUES (?)
+        ON CONFLICT(user_id) DO NOTHING
+    `).run(userId);
 
     return result.changes > 0;
 }
