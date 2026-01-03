@@ -1,7 +1,8 @@
+const { EmbedBuilder } = require('discord.js');
 const LOG_CHANNEL_ID = '1456924810205462590';
 
 // logs error messages to a channel
-async function logToDiscord(client, message)
+async function sendErrorLog(client, title, error, user = null)
 {
     try
     {
