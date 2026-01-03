@@ -1,5 +1,6 @@
 const { Events } = require('discord.js');
 const eloRepo = require('../db/eloRepo');
+const { sendErrorLog } = require('../utils/logger');
 
 module.exports = {
     name: 'guildMemberAdd',
@@ -16,6 +17,7 @@ module.exports = {
         catch (error)
         {
             console.error(`Failed to init ELO for ${member.id}:`, error);
+            await sendErrorLog(member.client, 'ELO Auto-Initialization Failed', error, member.user);
         }
     },
 };
