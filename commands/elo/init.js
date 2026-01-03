@@ -18,7 +18,7 @@ module.exports = {
         {
             if (member.user.bot) continue;
 
-            await eloRepo.ensureUser(member.id);
+            await eloRepo.ensureUser(member.id, member.user.username);
             initialized++;
         }
 
