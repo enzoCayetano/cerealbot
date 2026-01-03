@@ -2,11 +2,13 @@ const db = require('./database');
 
 function ensureUser(userId)
 {
-    db.prepare(`
+    const result = db.prepare(`
         INSERT INTO users (user_id)
         VALUES (?)
         ON CONFLICT(user_id) DO NOTHING
     `).run(userId);
+
+    return result.changes > 0;
 }
 
 function getElo(userId)
@@ -47,6 +49,7 @@ function addElo(userId, delta, reason = null)
 }
 
 module.exports = {
+    ensureUser,
     getElo,
     setElo,
     addElo,
