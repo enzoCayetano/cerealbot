@@ -48,9 +48,17 @@ function addElo(userId, delta, reason = null)
     return next;
 }
 
+function sortTopUsers()
+{
+    db.prepare(`
+        SELECT username, elo FROM users ORDER BY elo DESC   
+    `).all();
+}
+
 module.exports = {
     ensureUser,
     getElo,
     setElo,
     addElo,
+    sortTopUsers,
 };
