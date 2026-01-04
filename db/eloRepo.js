@@ -50,9 +50,11 @@ function addElo(userId, delta, reason = null)
 
 function sortTopUsers()
 {
-    db.prepare(`
+    const users = db.prepare(`
         SELECT username, elo FROM users ORDER BY elo DESC   
     `).all();
+    
+    return users;
 }
 
 module.exports = {
