@@ -51,10 +51,48 @@ function addElo(userId, delta, reason = null)
 function sortTopUsers()
 {
     const users = db.prepare(`
-        SELECT username, elo FROM users ORDER BY elo DESC   
+        SELECT user_id AS id, username, elo FROM users ORDER BY elo DESC   
     `).all();
     
     return users;
+}
+
+function updateMatchResults(teamA_ids, teamB_ids, winner)
+{
+    // fetch elos
+    const allIds = [...teamA_ids, ...teamB_ids];
+    const placeholders = allIds.map(() => '?').join(',');
+    const players = db.prepare(`
+        SELECT user_id, elo FROM users WHERE user_id IN (${placeholders})
+    `).all(...allIds);
+
+    const getElo = (id) => players.find(p => p.id === id)?.elo || 1000;
+
+    // calculate average team elo
+    const avgA = teamA_ids.reduce((sum, id) => sum + getElo(id), 0) / teamA_ids.length;
+    const avgB = teamB_ids.reduce((sum, id) => sum + getElo(id), 0) / teamB_ids.length;
+
+    const expectedA = 1 / (1 + Math.pow(10, (avgB - avgA) / 400));
+
+    const K = 32;
+    const scoreA = winner === 'A' ? 1 : 0;
+    const pointChange = Math.round(K * (scoreA - expectedA));
+
+    const updateStmt = db.prepare(`
+        UPDATE users SET elo = elo + ? WHERE user_id = ?    
+    `);
+
+    const transaction = db.transaction(() => {
+        teamA_ids.forEach(id => {
+            if (!id.startsWith('GHOST_')) updateStmt.run(pointChange, id);
+        });
+        teamB_ids.forEach(id => {
+            if (!id.startsWith('GHOST_')) updateStmt.run(-pointChange, id);
+        });
+    });
+
+    transaction();
+    return pointChange;
 }
 
 module.exports = {
@@ -63,4 +101,5 @@ module.exports = {
     setElo,
     addElo,
     sortTopUsers,
+    updateMatchResults,
 };
