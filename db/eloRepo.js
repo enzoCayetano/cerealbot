@@ -5,8 +5,8 @@ function ensureUser(userId, username)
     const result = db.prepare(`
         INSERT INTO users (user_id, username, elo)
         VALUES (?, ?, 1000)
-        ON CONFLICT(user_id) DO UPDATE SET username = excluded.username
-    `).run(userId, username);
+        ON CONFLICT(user_id) DO UPDATE SET username = COALESCE(?, users.username)
+    `).run(userId, username, username);
 
     return result.changes > 0;
 }
@@ -20,6 +20,17 @@ function getElo(userId)
     `).get(userId);
 
     return row.elo;
+}
+
+function getUserStats(userId, username)
+{
+    ensureUser(userId, username);
+
+    const row = db.prepare(`
+        SELECT * FROM users WHERE user_id = ?
+    `).get(userId);
+
+    return row;
 }
 
 function setElo(userId, elo)
@@ -98,6 +109,7 @@ function updateMatchResults(teamA_ids, teamB_ids, winner)
 module.exports = {
     ensureUser,
     getElo,
+    getUserStats,
     setElo,
     addElo,
     sortTopUsers,
