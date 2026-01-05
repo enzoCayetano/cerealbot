@@ -7,6 +7,7 @@ db.exec(`
         user_id TEXT PRIMARY KEY,
         username TEXT,
         elo INTEGER NOT NULL DEFAULT 1000,
+        highest_elo INTEGER DEFAULT 1000,
         wins INTEGER DEFAULT 0,
         losses INTEGER DEFAULT 0,
         games_played INTEGER DEFAULT 0,
