@@ -24,7 +24,7 @@ module.exports = {
             const leaderboardString = currentUsers.map((user, index) => {
                 const rank = start + index + 1;
                 const prefix = `**#${rank}**`;
-                return `${prefix} ${user.username || 'Unknown'}: \`${user.elo}\` ELO`;
+                return `${prefix}.  ${user.username || 'Unknown'}: \`${user.elo}\` ELO`;
             }).join('\n');
 
             return new EmbedBuilder()
