@@ -37,7 +37,7 @@ module.exports = {
             .addFields(
                 { name: 'ELO Rating', value: `**${stats.elo}** ELO\n(Peak: \`${stats.highest_elo}\`)`, inline: true },
                 { name: 'Games', value: `Total: \`${stats.games_played}\`\nStreak: \`${stats.current_streak}\``, inline: true },
-                { name: 'Performance', value: `Wins: \`${stats.wins}\` | Losses: \`${stats.losses}\`\nRate: \`${winRate}%\``, inline: false },
+                { name: 'Performance', value: `Wins: \`${stats.wins}\` | Losses: \`${stats.losses}\`\nWin Rate: \`${winRate}%\``, inline: false },
             )
             .setFooter({ text: 'Last played: ' })
             .setTimestamp(new Date(stats.last_played));

@@ -6,15 +6,13 @@ module.exports = {
         .setName('elo-refresh')
         .setDescription('Refreshes elo and highest elo.')
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
-    async execute(interaction)
-    {
+    async execute(interaction) {
         await interaction.deferReply({ ephemeral: true });
 
         const members = await interaction.guild.members.fetch();
         let updated = 0;
 
-        for (const [memberId, member] of members)
-        {
+        for (const [memberId, member] of members) {
             if (member.user.bot) continue;
 
             eloRepo.ensureUser(member.id, member.displayName);
@@ -25,7 +23,7 @@ module.exports = {
                 WHERE user_id = ?
             `).run(member_id);
 
-            updated++; 
+            updated++;
         }
 
         await interaction.editReply(`Sync complete! Refreshed data for **${updated}** users.`)
