@@ -91,6 +91,10 @@ function buildQueueRow(disabled = false)
             .setLabel('Leave')
             .setStyle(ButtonStyle.Danger)
             .setDisabled(disabled),
+        new ButtonBuilder()
+            .setCustomId('queue_cancel')
+            .setLabel('Cancel Queue')
+            .setStyle(ButtonStyle.Secondary),
     );
 }
 

@@ -167,6 +167,32 @@ module.exports = {
             return;
         }
 
+        // ---- QUEUE CANCEL ----
+        if (customId === 'queue_cancel')
+        {
+            const member = await guild.members.fetch(user.id);
+            if (!member.roles.cache.has(HOST_ROLE_ID))
+                return interaction.reply({ content: 'Only hosts can cancel the queue.', ephemeral: true });
+
+            if (!matchState.queue)
+                return interaction.reply({ content: 'No active queue to cancel.', ephemeral: true });
+
+            clearTimeout(matchState.queue.timeoutHandle);
+            matchState.queue = null;
+
+            await interaction.update({
+                embeds: [
+                    new EmbedBuilder()
+                        .setTitle('Queue Cancelled')
+                        .setDescription('The host cancelled the queue.')
+                        .setColor(0xED4245),
+                ],
+                components: [],
+            });
+            
+            return;
+        }
+
         // ---- MATCH RESULT ----
         if (customId === 'match_win_a' || customId === 'match_win_b')
         {
