@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, Embed } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType } = require('discord.js');
 const eloRepo = require('../../db/eloRepo');
 const { sendErrorLog } = require('../../utils/logger');
 
