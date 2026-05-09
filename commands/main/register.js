@@ -1,5 +1,5 @@
 const { SlashCommandBuilder } = require('discord.js');
-const db = require('../../db/db');
+const eloRepo = require('../../db/eloRepo');
 const { sendErrorLog } = require('../../utils/logger');
 
 module.exports = {
@@ -30,34 +30,33 @@ module.exports = {
                 });
             }
 
-            const existing = db.prepare(`
-                SELECT user_id FROM users WHERE user_id = ?
-            `).get(userId);
+            const result = eloRepo.registerUser(userId, username);
 
-            if (existing)
+            if (!result.success)
             {
+                const messages = {
+                    already_registered: 'You are already registered! Use `/username` to change your username.',
+                    username_taken: `The username **${username}** is already taken. Please choose another name.`,
+                };
+
                 return await interaction.reply({
-                    content: 'You are already registered!',
-                    ephemeral: true
+                    content: messages[result.reason],
+                    ephemeral: true,
                 });
             }
 
-            db.prepare(`
-                INSERT INTO users (user_id, username) VALUES (?, ?)
-            `).run(userId, username);
-
             await interaction.reply({
-                content: 'You have been registered successfully!',
+                content: `You have been registered as **${username}**!`,
                 ephemeral: true
             });
         }
         catch (err)        {
-            console.error('Error registering user:', err);
-            sendErrorLog(`Error registering user ${username} (${userId}): ${err.message}`);
+            console.error(err);
             await interaction.reply({
-                content: 'An error occurred while registering. Please try again later.',
-                ephemeral: true
+                content: 'Something went wrong during registration.',
+                ephemeral: true,
             });
+            await sendErrorLog(interaction.client, 'Register Command Error', err, interaction.user);
         }
     },
 };
