@@ -43,10 +43,11 @@ module.exports = {
                 .setColor(0x5865F2) // change this to MR rank colors later
                 .addFields(
                     { name: 'ELO',         value: `${profile.elo}`,          inline: true },
+                    { name: 'Peak ELO',         value: `${profile.highest_elo}`,          inline: true },
                     { name: 'Rank',         value: `#${profile.rank}`,        inline: true },
-                    { name: 'Streak',       value: `${profile.current_streak} win(s)`, inline: true },
                     { name: 'Wins',         value: `${profile.wins}`,         inline: true },
                     { name: 'Losses',       value: `${profile.losses}`,       inline: true },
+                    { name: 'Streak',       value: `${profile.current_streak} win(s)`, inline: true },
                     { name: 'Games Played', value: `${profile.games_played}`, inline: true },
                     { name: 'Winrate',      value: `${winrate}%`,             inline: true },
                 )
