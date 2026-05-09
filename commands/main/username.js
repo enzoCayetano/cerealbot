@@ -45,7 +45,7 @@ module.exports = {
             }
 
             await interaction.reply({
-                content: `✅ Username updated from **${result.oldUsername}** to **${newUsername}**.`,
+                content: `Username updated to **${newUsername}**.`,
                 ephemeral: true,
             });
         }
