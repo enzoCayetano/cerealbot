@@ -1,41 +1,67 @@
 const db = require('./database');
 
-function ensureUser(userId, username)
+function registerUser(userId, username)
 {
-    const result = db.prepare(`
-        INSERT INTO users (user_id, username, elo)
-        VALUES (?, ?, 1000)
-        ON CONFLICT(user_id) DO UPDATE SET username = COALESCE(?, users.username)
-    `).run(userId, username, username);
+    const taken = db.prepare(`
+        SELECT user_id FROM users WHERE LOWER(username) = LOWER(?) AND user_id != ?
+    `).get(username, userId);
 
-    return result.changes > 0;
+    if (taken) return { success: false, reason: 'username_taken' };
+
+    const existing = db.prepare(`
+        SELECT user_id FROM users WHERE user_id = ?
+    `).get(userId);
+
+    if (existing) return { success: false, reason: 'already_registered' };
+
+    db.prepare(`
+        INSERT INTO users (user_id, username, elo) VALUES (?, ?, 1000)
+    `).run(userId, username);
+
+    return { success: true };
+}
+
+function setUsername(userId, newUsername)
+{
+    const existing = db.prepare(`
+        SELECT user_id FROM users WHERE user_id = ?
+    `).get(userId);
+
+    if (!existing) return { success: false, reason: 'user_not_found' };
+
+    const taken = db.prepare(`
+        SELECT user_id FROM users WHERE LOWER(username) = LOWER(?) AND user_id != ?
+    `).get(newUsername, userId);
+
+    if (taken) return { success: false, reason: 'username_taken' };
+
+    db.prepare(`
+        UPDATE users SET username = ? WHERE user_id = ?
+    `).run(newUsername, userId);
+
+    return { success: true };
 }
 
 function getElo(userId)
 {
-    ensureUser(userId);
-
     const row = db.prepare(`
         SELECT elo FROM users WHERE user_id = ?
     `).get(userId);
 
-    return row.elo;
+    return row?.elo ?? null;
 }
 
 function getUserStats(userId, username)
 {
-    ensureUser(userId, username);
-
-    const row = db.prepare(`
+    return db.prepare(`
         SELECT * FROM users WHERE user_id = ?
-    `).get(userId);
-
-    return row;
+    `).get(userId) ?? null;
 }
 
 function setElo(userId, elo)
 {
-    ensureUser(userId);
+    const user = db.prepare(`SELECT user_id FROM users WHERE user_id = ?`).get(userId);
+    if (!user) return null;
 
     db.prepare(`
         UPDATE users SET elo = ? WHERE user_id = ?
@@ -143,7 +169,8 @@ function updateMatchResults(teamA_ids, teamB_ids, winner)
 }
 
 module.exports = {
-    ensureUser,
+    registerUser,
+    setUsername,
     getElo,
     getUserStats,
     setElo,
