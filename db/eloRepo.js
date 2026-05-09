@@ -59,6 +59,18 @@ function addElo(userId, delta, reason = null)
     return next;
 }
 
+function updateRanks()
+{
+    db.prepare(`
+        UPDATE users
+        SET rank = (
+            SELECT COUNT(*) + 1
+            FROM users AS u2
+            WHERE u2.elo > users.elo
+        )
+    `).run();
+}
+
 function sortTopUsers()
 {
     const users = db.prepare(`
@@ -68,7 +80,8 @@ function sortTopUsers()
     return users;
 }
 
-function updateMatchResults(teamA_ids, teamB_ids, winner) {
+function updateMatchResults(teamA_ids, teamB_ids, winner) 
+{
     // fetch elos
     const allIds = [...teamA_ids, ...teamB_ids];
     const placeholders = allIds.map(() => '?').join(',');
@@ -125,6 +138,7 @@ function updateMatchResults(teamA_ids, teamB_ids, winner) {
     });
 
     transaction();
+    updateRanks();
     return pointChange;
 }
 
