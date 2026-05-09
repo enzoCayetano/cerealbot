@@ -68,8 +68,7 @@ function sortTopUsers()
     return users;
 }
 
-function updateMatchResults(teamA_ids, teamB_ids, winner)
-{
+function updateMatchResults(teamA_ids, teamB_ids, winner) {
     // fetch elos
     const allIds = [...teamA_ids, ...teamB_ids];
     const placeholders = allIds.map(() => '?').join(',');
@@ -77,7 +76,7 @@ function updateMatchResults(teamA_ids, teamB_ids, winner)
         SELECT user_id, elo FROM users WHERE user_id IN (${placeholders})
     `).all(...allIds);
 
-    const getElo = (id) => players.find(p => p.id === id)?.elo || 1000;
+    const getElo = (id) => players.find(p => p.user_id === id)?.elo ?? 1000;
 
     // calculate average team elo
     const avgA = teamA_ids.reduce((sum, id) => sum + getElo(id), 0) / teamA_ids.length;
@@ -89,16 +88,39 @@ function updateMatchResults(teamA_ids, teamB_ids, winner)
     const scoreA = winner === 'A' ? 1 : 0;
     const pointChange = Math.round(K * (scoreA - expectedA));
 
-    const updateStmt = db.prepare(`
-        UPDATE users SET elo = elo + ? WHERE user_id = ?    
+    const winnerIds = winner === 'A' ? teamA_ids : teamB_ids;
+    const loserIds  = winner === 'A' ? teamB_ids : teamA_ids;
+    const winPoints = winner === 'A' ? pointChange : -pointChange;
+
+    const now = new Date().toISOString();
+
+    const updateWinner = db.prepare(`
+        UPDATE users SET
+            elo          = MAX(0, elo + ?),
+            highest_elo  = MAX(highest_elo, elo + ?),
+            wins         = wins + 1,
+            games_played = games_played + 1,
+            current_streak = current_streak + 1,
+            last_played  = ?
+        WHERE user_id = ?
+    `);
+
+    const updateLoser = db.prepare(`
+        UPDATE users SET
+            elo            = MAX(0, elo - ?),
+            losses         = losses + 1,
+            games_played   = games_played + 1,
+            current_streak = 0,
+            last_played    = ?
+        WHERE user_id = ?
     `);
 
     const transaction = db.transaction(() => {
-        teamA_ids.forEach(id => {
-            if (!id.startsWith('GHOST_')) updateStmt.run(pointChange, id);
+        winnerIds.forEach(id => {
+            if (!id.startsWith('GHOST_')) updateWinner.run(winPoints, winPoints, now, id);
         });
-        teamB_ids.forEach(id => {
-            if (!id.startsWith('GHOST_')) updateStmt.run(-pointChange, id);
+        loserIds.forEach(id => {
+            if (!id.startsWith('GHOST_')) updateLoser.run(winPoints, now, id);
         });
     });
 
