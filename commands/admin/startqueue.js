@@ -1,7 +1,7 @@
 const { SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, } = require('discord.js');
 const { AWAITING_VC_ID, QUEUE_TIMEOUT_MS, HOST_ROLE_ID } = require('../../config');
 const eloRepo = require('../../db/eloRepo');
-const matchState = require('../../state/matchState');
+const matchState = require('../../utils/matchState');
 const { sendErrorLog } = require('../../utils/logger');
 
 const QUEUE_SIZE = 12;

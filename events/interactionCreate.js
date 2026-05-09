@@ -1,9 +1,9 @@
 const { Collection, Events, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { AWAITING_VC_ID, TEAM1_VC_ID, TEAM2_VC_ID, HOST_ROLE_ID } = require('../config');
 const eloRepo = require('../db/eloRepo');
-const matchState = require('../state/matchState');
+const matchState = require('../utils/matchState');
 const { balanceTeams } = require('../utils/teamBalancer');
-const { buildQueueEmbed, buildQueueRow } = require('../commands/match/startqueue');
+const { buildQueueEmbed, buildQueueRow } = require('../commands/admin/startqueue');
 const { match } = require('node:assert');
 
 const QUEUE_SIZE = 12;
