@@ -158,7 +158,7 @@ async function generateProfileCard(profile, avatarURL) {
     const boxW = 80, gap = 60;
     const totalW = stats.length * boxW + (stats.length - 1) * gap;
     let bx = (W - totalW) / 3; // center the row
-    const by = H - 80;
+    const by = H - 100;
 
     for (const stat of stats) {
         drawStatBox(ctx, bx, by, stat.label, stat.value, stat.accent);
