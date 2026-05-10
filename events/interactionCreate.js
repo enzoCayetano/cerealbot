@@ -161,7 +161,7 @@ module.exports = {
                 ]);
 
                 const matchEmbed = new EmbedBuilder()
-                    .setTitle('⚔️ Match Started!')
+                    .setTitle('Match Started!')
                     .setColor(0x57F287)
                     .addFields(
                         { name: `Team A (${eloA} ELO)`, value: teamA.map(p => `• ${p.username}`).join('\n'), inline: true },
