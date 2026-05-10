@@ -9,10 +9,9 @@
 - ~~add command to wipe/delete database~~ completed
 - ~~match history~~ completed
 - ~~better match history display using canvas~~ completed
+- ~~rename rank to profile~~ completed
 - replace match embeds with canvas images
-- rename rank to profile
 - add MR ranks to profile and DB
-- add canceled matches to match history
 - team captain functionality
 - when registering, change server nickname to username in db
 
