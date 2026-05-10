@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Match History Card Preview</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            background: #2b2d31;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 40px 20px;
+            margin: 0;
+            gap: 16px;
+            font-family: 'Outfit', sans-serif;
+        }
+        canvas { border-radius: 20px; box-shadow: 0 8px 48px rgba(0,0,0,0.7); }
+        .controls {
+            display: flex; gap: 12px;
+        }
+        button {
+            background: #3f4248; color: #fff; border: none;
+            padding: 8px 20px; border-radius: 8px; cursor: pointer;
+            font-family: 'Outfit', sans-serif; font-size: 14px;
+        }
+        button:disabled { opacity: 0.4; cursor: default; }
+        .label { color: #8b8fa8; font-size: 13px; }
+        .toggle { display: flex; gap: 8px; align-items: center; color: #c4c9d4; font-size: 14px; }
+        .toggle button { padding: 6px 14px; font-size: 13px; }
+        .toggle button.active { background: #5865F2; }
+    </style>
+</head>
+<body>
+    <p class="label">MATCH HISTORY PREVIEW — edit and save to refresh</p>
+
+    <div class="toggle">
+        <span>View:</span>
+        <button id="btn-global" class="active" onclick="setMode('global')">Server-wide</button>
+        <button id="btn-user" onclick="setMode('user')">Per-user</button>
+    </div>
+
+    <canvas id="c"></canvas>
+
+    <div class="controls">
+        <button id="prev" onclick="changePage(-1)">◀ Previous</button>
+        <span class="label" id="page-label"></span>
+        <button id="next" onclick="changePage(1)">Next ▶</button>
+    </div>
+
+    <script>
+    // ============================================================
+    //  FAKE DATA
+    // ============================================================
+    const MY_USER_ID = 'user_1';
+
+    const allMatches = [
+        { match_id: 101, winner_team: 'A', timestamp: new Date(Date.now() - 3600000).toISOString() },
+        { match_id: 100, winner_team: 'B', timestamp: new Date(Date.now() - 86400000).toISOString() },
+        { match_id:  99, winner_team: 'A', timestamp: new Date(Date.now() - 172800000).toISOString() },
+        { match_id:  98, winner_team: 'A', timestamp: new Date(Date.now() - 259200000).toISOString() },
+        { match_id:  97, winner_team: 'B', timestamp: new Date(Date.now() - 345600000).toISOString() },
+        { match_id:  96, winner_team: 'A', timestamp: new Date(Date.now() - 432000000).toISOString() },
+        { match_id:  95, winner_team: 'B', timestamp: new Date(Date.now() - 518400000).toISOString() },
+    ];
+
+    const allMatchPlayers = {
+        101: [
+            { user_id: 'user_1', username: 'Wumpus',   team: 'A', elo_delta:  +22 },
+            { user_id: 'user_2', username: 'Clyde',    team: 'A', elo_delta:  +18 },
+            { user_id: 'user_3', username: 'Nelly',    team: 'A', elo_delta:  +25 },
+            { user_id: 'user_4', username: 'Sparky',   team: 'B', elo_delta:  -20 },
+            { user_id: 'user_5', username: 'Blurple',  team: 'B', elo_delta:  -17 },
+            { user_id: 'user_6', username: 'Snowsong', team: 'B', elo_delta:  -22 },
+        ],
+        100: [
+            { user_id: 'user_1', username: 'Wumpus',   team: 'A', elo_delta:  -18 },
+            { user_id: 'user_2', username: 'Clyde',    team: 'A', elo_delta:  -21 },
+            { user_id: 'user_3', username: 'Nelly',    team: 'A', elo_delta:  -16 },
+            { user_id: 'user_4', username: 'Sparky',   team: 'B', elo_delta:  +19 },
+            { user_id: 'user_5', username: 'Blurple',  team: 'B', elo_delta:  +23 },
+            { user_id: 'user_6', username: 'Snowsong', team: 'B', elo_delta:  +20 },
+        ],
+        99: [
+            { user_id: 'user_1', username: 'Wumpus',   team: 'A', elo_delta:  +30 },
+            { user_id: 'user_7', username: 'Ghostly',  team: 'A', elo_delta:  +28 },
+            { user_id: 'user_3', username: 'Nelly',    team: 'A', elo_delta:  +26 },
+            { user_id: 'user_4', username: 'Sparky',   team: 'B', elo_delta:  -27 },
+            { user_id: 'user_5', username: 'Blurple',  team: 'B', elo_delta:  -24 },
+            { user_id: 'user_6', username: 'Snowsong', team: 'B', elo_delta:  -29 },
+        ],
+        98: [
+            { user_id: 'user_2', username: 'Clyde',    team: 'A', elo_delta:  +15 },
+            { user_id: 'user_7', username: 'Ghostly',  team: 'A', elo_delta:  +19 },
+            { user_id: 'user_3', username: 'Nelly',    team: 'A', elo_delta:  +17 },
+            { user_id: 'user_4', username: 'Sparky',   team: 'B', elo_delta:  -18 },
+            { user_id: 'user_1', username: 'Wumpus',   team: 'B', elo_delta:  -14 },
+            { user_id: 'user_6', username: 'Snowsong', team: 'B', elo_delta:  -20 },
+        ],
+        97: [
+            { user_id: 'user_1', username: 'Wumpus',   team: 'A', elo_delta:  -12 },
+            { user_id: 'user_2', username: 'Clyde',    team: 'A', elo_delta:  -15 },
+            { user_id: 'user_3', username: 'Nelly',    team: 'A', elo_delta:  -11 },
+            { user_id: 'user_4', username: 'Sparky',   team: 'B', elo_delta:  +14 },
+            { user_id: 'user_5', username: 'Blurple',  team: 'B', elo_delta:  +16 },
+            { user_id: 'user_6', username: 'Snowsong', team: 'B', elo_delta:  +12 },
+        ],
+        96: [
+            { user_id: 'user_1', username: 'Wumpus',   team: 'A', elo_delta:  +20 },
+            { user_id: 'user_7', username: 'Ghostly',  team: 'A', elo_delta:  +22 },
+            { user_id: 'user_3', username: 'Nelly',    team: 'A', elo_delta:  +18 },
+            { user_id: 'user_4', username: 'Sparky',   team: 'B', elo_delta:  -19 },
+            { user_id: 'user_5', username: 'Blurple',  team: 'B', elo_delta:  -21 },
+            { user_id: 'user_6', username: 'Snowsong', team: 'B', elo_delta:  -17 },
+        ],
+        95: [
+            { user_id: 'user_2', username: 'Clyde',    team: 'A', elo_delta:  -13 },
+            { user_id: 'user_7', username: 'Ghostly',  team: 'A', elo_delta:  -16 },
+            { user_id: 'user_1', username: 'Wumpus',   team: 'A', elo_delta:  -11 },
+            { user_id: 'user_4', username: 'Sparky',   team: 'B', elo_delta:  +14 },
+            { user_id: 'user_5', username: 'Blurple',  team: 'B', elo_delta:  +17 },
+            { user_id: 'user_6', username: 'Snowsong', team: 'B', elo_delta:  +13 },
+        ],
+    };
+
+    const targetUser = { id: MY_USER_ID, username: 'Wumpus' };
+
+    // ============================================================
+    //  STATE
+    // ============================================================
+    let mode = 'global'; // 'global' | 'user'
+    let currentPage = 0;
+    const ITEMS_PER_PAGE = 5;
+
+    function setMode(m) {
+        mode = m;
+        currentPage = 0;
+        document.getElementById('btn-global').classList.toggle('active', m === 'global');
+        document.getElementById('btn-user').classList.toggle('active', m === 'user');
+        render();
+    }
+
+    function changePage(dir) {
+        const total = Math.ceil(allMatches.length / ITEMS_PER_PAGE);
+        currentPage = Math.max(0, Math.min(total - 1, currentPage + dir));
+        render();
+    }
+
+    // ============================================================
+    //  DRAW HELPERS  (mirrors matchHistoryCard.js)
+    // ============================================================
+    const FONT = '"Outfit", sans-serif';
+    const W = 700, PADDING = 28, HEADER_H = 88, MATCH_H = 100, FOOTER_H = 40;
+
+    function drawRoundRect(ctx, x, y, w, h, r) {
+        ctx.beginPath();
+        ctx.moveTo(x + r, y);
+        ctx.lineTo(x + w - r, y);
+        ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+        ctx.lineTo(x + w, y + h - r);
+        ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+        ctx.lineTo(x + r, y + h);
+        ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+        ctx.lineTo(x, y + r);
+        ctx.quadraticCurveTo(x, y, x + r, y);
+        ctx.closePath();
+    }
+
+    function truncate(ctx, text, maxWidth) {
+        if (ctx.measureText(text).width <= maxWidth) return text;
+        while (text.length > 0 && ctx.measureText(text + '…').width > maxWidth)
+            text = text.slice(0, -1);
+        return text + '…';
+    }
+
+    function formatDelta(d) { return d >= 0 ? `+${d}` : `${d}`; }
+
+    function formatDate(ts) {
+        return new Date(ts).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    }
+
+    function drawMatchRow(ctx, match, players, y, targetUserId = null) {
+        const x = PADDING, w = W - PADDING * 2, h = MATCH_H, r = 12;
+        const teamA = players.filter(p => p.team === 'A');
+        const teamB = players.filter(p => p.team === 'B');
+        const wonA  = match.winner_team === 'A';
+
+        let userWon = null;
+        if (targetUserId) {
+            const self = players.find(p => p.user_id === targetUserId);
+            if (self) userWon = self.team === match.winner_team;
+        }
+
+        // Card bg
+        ctx.fillStyle = 'rgba(255,255,255,0.04)';
+        drawRoundRect(ctx, x, y, w, h, r); ctx.fill();
+
+        // Accent bar
+        const accentColor = userWon === null ? '#5865F2' : userWon ? '#57F287' : '#ED4245';
+        ctx.fillStyle = accentColor;
+        drawRoundRect(ctx, x, y, 4, h, 2); ctx.fill();
+
+        // Match ID
+        ctx.fillStyle = '#8b8fa8';
+        ctx.font = `500 12px ${FONT}`;
+        ctx.textAlign = 'left';
+        ctx.fillText(`MATCH #${match.match_id}`, x + 16, y + 18);
+
+        // Date
+        ctx.textAlign = 'right';
+        ctx.fillText(formatDate(match.timestamp), x + w - 8, y + 18);
+
+        // Winner badge
+        ctx.textAlign = 'center';
+        const badgeText = `TEAM ${match.winner_team} WIN`;
+        const badgeColor = match.winner_team === 'A' ? '#5865F2' : '#EB459E';
+        ctx.font = `700 11px ${FONT}`;
+        const badgeW = ctx.measureText(badgeText).width + 20;
+        ctx.fillStyle = badgeColor + '33';
+        drawRoundRect(ctx, W / 2 - badgeW / 2, y + 6, badgeW, 20, 4); ctx.fill();
+        ctx.fillStyle = badgeColor;
+        ctx.fillText(badgeText, W / 2, y + 20);
+
+        // Divider
+        ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+        ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(x + 8, y + 28); ctx.lineTo(x + w - 8, y + 28); ctx.stroke();
+
+        // Team columns
+        const colW = (w - 32) / 2;
+        const teamAx = x + 16, teamBx = x + 16 + colW + 16, teamY = y + 36;
+
+        ctx.textAlign = 'left';
+        ctx.fillStyle = wonA ? '#57F287' : '#ED4245';
+        ctx.font = `700 11px ${FONT}`;
+        ctx.fillText(wonA ? 'TEAM A  ✓' : 'TEAM A  ✗', teamAx, teamY);
+
+        ctx.fillStyle = !wonA ? '#57F287' : '#ED4245';
+        ctx.fillText(!wonA ? 'TEAM B  ✓' : 'TEAM B  ✗', teamBx, teamY);
+
+        const playerStartY = teamY + 14, lineH = 16;
+
+        const drawPlayers = (team, startX) => {
+            team.forEach((p, i) => {
+                const py = playerStartY + i * lineH;
+                const isTarget = p.user_id === targetUserId;
+                const delta = formatDelta(p.elo_delta);
+                const deltaColor = p.elo_delta >= 0 ? '#57F287' : '#ED4245';
+
+                if (isTarget) {
+                    ctx.fillStyle = 'rgba(255,255,255,0.06)';
+                    drawRoundRect(ctx, startX - 4, py - 11, colW, 14, 3); ctx.fill();
+                }
+
+                ctx.fillStyle = isTarget ? '#ffffff' : '#c4c9d4';
+                ctx.font = `${isTarget ? '700' : '400'} 12px ${FONT}`;
+                ctx.textAlign = 'left';
+                ctx.fillText(truncate(ctx, p.username ?? p.user_id, colW - 52), startX, py);
+
+                ctx.fillStyle = deltaColor;
+                ctx.font = `700 12px ${FONT}`;
+                ctx.textAlign = 'right';
+                ctx.fillText(delta, startX + colW - 8, py);
+            });
+        };
+
+        drawPlayers(teamA, teamAx);
+        drawPlayers(teamB, teamBx);
+
+        // Vertical divider
+        ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(x + w / 2, y + 30);
+        ctx.lineTo(x + w / 2, y + h - 8);
+        ctx.stroke();
+    }
+
+    // ============================================================
+    //  RENDER
+    // ============================================================
+    function render() {
+        const start = currentPage * ITEMS_PER_PAGE;
+        const matches = allMatches.slice(start, start + ITEMS_PER_PAGE);
+        const totalPages = Math.ceil(allMatches.length / ITEMS_PER_PAGE);
+        const activeTarget = mode === 'user' ? targetUser : null;
+
+        const H = HEADER_H + matches.length * (MATCH_H + 10) + FOOTER_H;
+        const canvas = document.getElementById('c');
+        canvas.width = W; canvas.height = H;
+        const ctx = canvas.getContext('2d');
+
+        // Background
+        const bg = ctx.createLinearGradient(0, 0, 0, H);
+        bg.addColorStop(0, '#0d0f18'); bg.addColorStop(1, '#131625');
+        drawRoundRect(ctx, 0, 0, W, H, 20); ctx.fillStyle = bg; ctx.fill();
+
+        // Dot grid
+        ctx.fillStyle = 'rgba(255,255,255,0.025)';
+        for (let gx = 20; gx < W; gx += 28)
+            for (let gy = 20; gy < H; gy += 28) {
+                ctx.beginPath(); ctx.arc(gx, gy, 1, 0, Math.PI * 2); ctx.fill();
+            }
+
+        // Top glow
+        const topGlow = ctx.createRadialGradient(W / 2, 0, 0, W / 2, 0, 220);
+        topGlow.addColorStop(0, 'rgba(88,101,242,0.18)');
+        topGlow.addColorStop(1, 'rgba(88,101,242,0)');
+        ctx.fillStyle = topGlow; ctx.fillRect(0, 0, W, H);
+
+        // Header icon
+        ctx.fillStyle = 'rgba(88,101,242,0.2)';
+        drawRoundRect(ctx, W / 2 - 18, 16, 36, 36, 8); ctx.fill();
+        ctx.fillStyle = '#5865F2';
+        ctx.font = `bold 20px ${FONT}`;
+        ctx.textAlign = 'center';
+        ctx.fillText('⚔', W / 2, 40);
+
+        // Title
+        ctx.fillStyle = '#ffffff';
+        ctx.font = `700 22px ${FONT}`;
+        const title = activeTarget ? `${activeTarget.username}'s Match History` : 'Recent Matches';
+        ctx.fillText(title, W / 2, 70);
+
+        // Header underline
+        ctx.strokeStyle = 'rgba(88,101,242,0.4)';
+        ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(PADDING, HEADER_H - 4); ctx.lineTo(W - PADDING, HEADER_H - 4); ctx.stroke();
+
+        // Rows
+        matches.forEach((match, i) => {
+            const players = allMatchPlayers[match.match_id] ?? [];
+            drawMatchRow(ctx, match, players, HEADER_H + i * (MATCH_H + 10), activeTarget?.id ?? null);
+        });
+
+        // Footer
+        ctx.fillStyle = '#8b8fa8';
+        ctx.font = `400 12px ${FONT}`;
+        ctx.textAlign = 'center';
+        ctx.fillText(`Page ${currentPage + 1} of ${totalPages}`, W / 2, H - FOOTER_H + 12);
+
+        // Update buttons
+        document.getElementById('prev').disabled = currentPage === 0;
+        document.getElementById('next').disabled = currentPage === totalPages - 1;
+        document.getElementById('page-label').textContent = `${currentPage + 1} / ${totalPages}`;
+    }
+
+    render();
+    </script>
+</body>
+</html>

@@ -1,9 +1,10 @@
 const { SlashCommandBuilder, AttachmentBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType } = require('discord.js');
 const eloRepo = require('../../db/eloRepo');
+const { generateMatchHistoryCard } = require('../../utils/matchHistoryCard');
 
 module.exports = {
     data: new SlashCommandBuilder()
-        .setName('match-history')
+        .setName('matchhistory')
         .setDescription('View recent match history.')
         .addUserOption(option =>
             option.setName('user')
@@ -13,7 +14,15 @@ module.exports = {
 
     async execute(interaction) 
     {
-        const targetUser = interaction.options.getUser('user') || null;
+        const targetDiscordUser = interaction.options.getUser('user') || null;
+
+        // Resolve DB profile for username
+        const dbProfile = targetDiscordUser ? eloRepo.getUserStats(targetDiscordUser.id) : null;
+        const targetUser = dbProfile
+            ? { id: targetDiscordUser.id, username: dbProfile.username }
+            : targetDiscordUser
+                ? { id: targetDiscordUser.id, username: targetDiscordUser.username }
+                : null;
 
         const matches = targetUser
             ? eloRepo.getUserMatchHistory(targetUser.id, 20)
@@ -22,90 +31,47 @@ module.exports = {
         if (!matches.length)
             return interaction.reply({ content: 'No matches found.', ephemeral: true });
 
-        // Fetch DB username if viewing a specific user
-        const dbProfile = targetUser ? eloRepo.getUserStats(targetUser.id) : null;
-        const displayName = dbProfile?.username ?? targetUser?.username ?? 'Unknown';
-
         let currentPage = 0;
         const ITEMS_PER_PAGE = 5;
         const TOTAL_PAGES = Math.ceil(matches.length / ITEMS_PER_PAGE);
 
-        const generateEmbed = (page) => {
+        const getPageMatches = (page) => {
             const start = page * ITEMS_PER_PAGE;
-            const pageMatches = matches.slice(start, start + ITEMS_PER_PAGE);
+            return matches.slice(start, start + ITEMS_PER_PAGE);
+        };
 
-            const { EmbedBuilder } = require('discord.js');
-            const embed = new EmbedBuilder()
-                .setTitle(targetUser ? `${displayName}'s Match History` : 'Recent Matches')
-                .setColor(0x5865F2)
-                .setFooter({ text: `Page ${page + 1} of ${TOTAL_PAGES}` })
-                .setTimestamp();
-
-            if (targetUser) 
-            {
-                // Per-user view — now also shows both teams for context
-                for (const m of pageMatches) 
-                {
-                    const players = eloRepo.getMatchPlayers(m.match_id);
-                    const teamA = players.filter(p => p.team === 'A');
-                    const teamB = players.filter(p => p.team === 'B');
-                    const won = m.winner_team === m.team;
-                    const delta = m.elo_delta >= 0 ? `+${m.elo_delta}` : `${m.elo_delta}`;
-                    const date = new Date(m.timestamp).toLocaleDateString();
-
-                    const fmt = (p) => {
-                        const isTarget = p.user_id === targetUser.id;
-                        const sign = p.elo_delta >= 0 ? '+' : '';
-                        const name = p.username ?? p.user_id;
-                        return isTarget ? `**__${name}__** (${sign}${p.elo_delta})` : `${name} (${sign}${p.elo_delta})`;
-                    };
-
-                    embed.addFields({
-                        name: `${won ? '✅' : '❌'} Match #${m.match_id} — ${delta} ELO — ${date}`,
-                        value: `**Team A:** ${teamA.map(fmt).join(', ')}\n**Team B:** ${teamB.map(fmt).join(', ')}`,
-                    });
-                }
-            } 
-            else 
-            {
-                // Server-wide view
-                for (const m of pageMatches) 
-                {
-                    const players = eloRepo.getMatchPlayers(m.match_id);
-                    const teamA = players.filter(p => p.team === 'A');
-                    const teamB = players.filter(p => p.team === 'B');
-
-                    const fmt = (p) => {
-                        const sign = p.elo_delta >= 0 ? '+' : '';
-                        return `${p.username ?? p.user_id} (${sign}${p.elo_delta})`;
-                    };
-
-                    const date = new Date(m.timestamp).toLocaleDateString();
-                    embed.addFields({
-                        name: `Match #${m.match_id} — Team ${m.winner_team} Won — ${date}`,
-                        value: `**Team A:** ${teamA.map(fmt).join(', ')}\n**Team B:** ${teamB.map(fmt).join(', ')}`,
-                    });
-                }
+        // Pre-fetch all player data for every match on the current page
+        const fetchMatchPlayers = (pageMatches) => {
+            const result = {};
+            for (const m of pageMatches) {
+                result[m.match_id] = eloRepo.getMatchPlayers(m.match_id);
             }
-
-            return embed;
+            return result;
         };
 
         const getButtons = (page) => new ActionRowBuilder().addComponents(
             new ButtonBuilder()
                 .setCustomId('mh_prev')
-                .setLabel('Previous')
+                .setLabel('◀  Previous')
                 .setStyle(ButtonStyle.Secondary)
                 .setDisabled(page === 0),
             new ButtonBuilder()
                 .setCustomId('mh_next')
-                .setLabel('Next')
+                .setLabel('Next  ▶')
                 .setStyle(ButtonStyle.Secondary)
                 .setDisabled(page === TOTAL_PAGES - 1),
         );
 
-        const response = await interaction.reply({
-            embeds: [generateEmbed(currentPage)],
+        await interaction.deferReply();
+
+        const pageMatches = getPageMatches(currentPage);
+        const matchPlayers = fetchMatchPlayers(pageMatches);
+
+        const buffer = await generateMatchHistoryCard(pageMatches, matchPlayers, currentPage, TOTAL_PAGES, targetUser);
+        const attachment = new AttachmentBuilder(buffer, { name: 'matchhistory.png' });
+
+        const response = await interaction.editReply({
+            files: [attachment],
             components: TOTAL_PAGES > 1 ? [getButtons(currentPage)] : [],
         });
 
@@ -123,8 +89,16 @@ module.exports = {
             if (i.customId === 'mh_next') currentPage++;
             else if (i.customId === 'mh_prev') currentPage--;
 
-            await i.update({
-                embeds: [generateEmbed(currentPage)],
+            await i.deferUpdate();
+
+            const newPageMatches = getPageMatches(currentPage);
+            const newMatchPlayers = fetchMatchPlayers(newPageMatches);
+
+            const newBuffer = await generateMatchHistoryCard(newPageMatches, newMatchPlayers, currentPage, TOTAL_PAGES, targetUser);
+            const newAttachment = new AttachmentBuilder(newBuffer, { name: 'matchhistory.png' });
+
+            await i.editReply({
+                files: [newAttachment],
                 components: [getButtons(currentPage)],
             });
         });
