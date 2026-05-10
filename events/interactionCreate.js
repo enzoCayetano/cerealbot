@@ -270,6 +270,16 @@ module.exports = {
 
             const { basePointChange, changes } = eloRepo.updateMatchResults(teamA, teamB, winner);
 
+            const allIds = [...teamA, ...teamB];
+            const streakLines = allIds
+                .map(id => {
+                    const p = eloRepo.getUserStats(id);
+                    return p && p.current_streak >= 2
+                        ? `**${p.username}** is on a ${p.current_streak}-win streak!`
+                        : null;
+                })
+                .filter(Boolean);
+
             const resultEmbed = new EmbedBuilder()
                 .setTitle(`${winnerLabel} Wins!`)
                 .setColor(winner === 'A' ? 0x5865F2 : 0xED4245)
@@ -294,6 +304,14 @@ module.exports = {
                     },
                 )
                 .setTimestamp();
+
+            if (streakLines.length > 0) {
+                resultEmbed.addFields({
+                    name: '\u200b',
+                    value: streakLines.join('\n'),
+                    inline: false,
+                });
+            }
 
             matchState.match = null;
 
