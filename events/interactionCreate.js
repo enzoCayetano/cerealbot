@@ -125,57 +125,78 @@ module.exports = {
 
             const playerList = [...matchState.queue.players];
             const requiredSize = matchState.queue.size ?? QUEUE_SIZE;
+
             if (playerList.length < requiredSize)
                 return interaction.reply({ content: `Not enough players. Need ${requiredSize}, have ${playerList.length}.`, ephemeral: true });
 
-            clearTimeout(matchState.queue.timeoutHandle);
+            await interaction.deferUpdate();
 
-            const profiles = playerList.map(id => eloRepo.getUserStats(id));
-            const { teamA, teamB, eloA, eloB, eloDiff } = balanceTeams(profiles);
-
-            // Move players to team VCs
-            for (const p of teamA)
-            {
-                try { await (await guild.members.fetch(p.user_id)).voice.setChannel(TEAM1_VC_ID); }
-                catch (_) {}
-            }
-            for (const p of teamB)
-            {
-                try { await (await guild.members.fetch(p.user_id)).voice.setChannel(TEAM2_VC_ID); }
-                catch (_) {}
-            }
-
-            const matchEmbed = new EmbedBuilder()
-                .setTitle('⚔️ Match Started!')
-                .setColor(0x57F287)
-                .addFields(
-                    { name: `🔵 Team A (${eloA} ELO)`, value: teamA.map(p => `• ${p.username}`).join('\n'), inline: true },
-                    { name: `🔴 Team B (${eloB} ELO)`, value: teamB.map(p => `• ${p.username}`).join('\n'), inline: true },
-                    { name: 'ELO Difference', value: `${eloDiff}` },
-                )
-                .setFooter({ text: 'Host: click below to report the winner, or cancel to discard.' });
-
-            const resultRow = new ActionRowBuilder().addComponents(
-                new ButtonBuilder().setCustomId('match_win_a').setLabel('🔵 Team A Won').setStyle(ButtonStyle.Primary),
-                new ButtonBuilder().setCustomId('match_win_b').setLabel('🔴 Team B Won').setStyle(ButtonStyle.Danger),
-                new ButtonBuilder().setCustomId('match_cancel').setLabel('Cancel Match').setStyle(ButtonStyle.Secondary),
-            );
-
-            const channel = await guild.channels.fetch(matchState.queue.channelId);
-            const matchMsg = await channel.send({ embeds: [matchEmbed], components: [resultRow] });
-
-            matchState.match = {
-                messageId: matchMsg.id,
-                channelId: matchMsg.channelId,
-                teamA: teamA.map(p => p.user_id),
-                teamB: teamB.map(p => p.user_id),
-            };
-            matchState.queue = null;
-
-            await interaction.update({
-                embeds: [new EmbedBuilder().setTitle('✅ Queue Full — Match Started!').setColor(0x57F287)],
+            await interaction.editReply({
+                embeds: [new EmbedBuilder()
+                    .setTitle('Starting Match...')
+                    .setDescription('Balancing teams and moving players to VC...')
+                    .setColor(0xFEE75C)
+                ],
                 components: [],
             });
+
+            try
+            {
+                clearTimeout(matchState.queue.timeoutHandle);
+                const queueChannelId = matchState.queue.channelId;
+
+                const profiles = playerList.map(id => eloRepo.getUserStats(id));
+
+                const { teamA, teamB, eloA, eloB, eloDiff } = balanceTeams(profiles);
+
+                await Promise.allSettled([
+                    ...teamA.map(async p => {
+                        const m = await guild.members.fetch(p.user_id);
+                        await m.voice.setChannel(TEAM1_VC_ID);
+                    }),
+                    ...teamB.map(async p => {
+                        const m = await guild.members.fetch(p.user_id);
+                        await m.voice.setChannel(TEAM2_VC_ID);
+                    }),
+                ]);
+
+                const matchEmbed = new EmbedBuilder()
+                    .setTitle('⚔️ Match Started!')
+                    .setColor(0x57F287)
+                    .addFields(
+                        { name: `Team A (${eloA} ELO)`, value: teamA.map(p => `• ${p.username}`).join('\n'), inline: true },
+                        { name: `Team B (${eloB} ELO)`, value: teamB.map(p => `• ${p.username}`).join('\n'), inline: true },
+                        { name: 'ELO Difference', value: `${eloDiff}` },
+                    )
+                    .setFooter({ text: 'Host: Click below to report the winner, or cancel to discard.' });
+
+                const resultRow = new ActionRowBuilder().addComponents(
+                    new ButtonBuilder().setCustomId('match_win_a').setLabel('Team A Won').setStyle(ButtonStyle.Primary),
+                    new ButtonBuilder().setCustomId('match_win_b').setLabel('Team B Won').setStyle(ButtonStyle.Danger),
+                    new ButtonBuilder().setCustomId('match_cancel').setLabel('Cancel Match').setStyle(ButtonStyle.Secondary),
+                );
+
+                const channel = await guild.channels.fetch(queueChannelId);
+
+                const matchMsg = await channel.send({ embeds: [matchEmbed], components: [resultRow] });
+
+                matchState.match = {
+                    messageId: matchMsg.id,
+                    channelId: matchMsg.channelId,
+                    teamA: teamA.map(p => p.user_id),
+                    teamB: teamB.map(p => p.user_id),
+                };
+                matchState.queue = null;
+
+                await interaction.editReply({
+                    embeds: [new EmbedBuilder().setTitle('✅ Match Started!').setColor(0x57F287)],
+                    components: [],
+                });
+            }
+            catch (err)
+            {
+                console.error('queue_start error:', err);
+            }
             return;
         }
 
