@@ -4,7 +4,7 @@ const { generateMatchHistoryCard } = require('../../utils/matchHistoryCard');
 
 module.exports = {
     data: new SlashCommandBuilder()
-        .setName('matchhistory')
+        .setName('match-history')
         .setDescription('View recent match history.')
         .addUserOption(option =>
             option.setName('user')
