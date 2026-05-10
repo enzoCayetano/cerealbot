@@ -5,8 +5,8 @@ const { generateProfileCard } = require('../../utils/profileCard');
 
 module.exports = {
     data: new SlashCommandBuilder()
-        .setName('rank')
-        .setDescription('Query your current rank/ELO.')
+        .setName('profile')
+        .setDescription('Query your profile.')
         .addUserOption(option => 
             option.setName('user')
                 .setDescription('User to view profile of')
