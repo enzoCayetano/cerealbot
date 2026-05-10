@@ -193,6 +193,16 @@ function updateMatchResults(teamA_ids, teamB_ids, winner)
         }
     });
 
+    db.prepare(`
+        INSERT INTO matches (winner_team, elo_change, team_a_players, team_b_players)
+        VALUES (?, ?, ?, ?)
+    `).run(
+        winner,
+        basePointChange,
+        teamA_ids.join(','),
+        teamB_ids.join(',')
+    );
+
     transaction();
     updateRanks();
     
