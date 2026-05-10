@@ -130,7 +130,7 @@ async function generateProfileCard(profile, avatarURL) {
 
     // Streak badge (only if streak >= 2)
     if (profile.current_streak >= 2) {
-        const streakText = `🔥 ${profile.current_streak} streak`;
+        const streakText = `Win Streak - ${profile.current_streak}`;
         ctx.font = 'bold 13px sans-serif';
         const sw = ctx.measureText(streakText).width + 20;
         ctx.fillStyle = 'rgba(255,150,50,0.2)';
