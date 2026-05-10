@@ -2,6 +2,7 @@ const { SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, Embed
 const { AWAITING_VC_ID, QUEUE_TIMEOUT_MS, HOST_ROLE_ID } = require('../../config');
 const eloRepo = require('../../db/eloRepo');
 const matchState = require('../../utils/matchState');
+const { balanceTeams } = require('../../utils/teamBalancer');
 const { sendErrorLog } = require('../../utils/logger');
 
 const QUEUE_SIZE = 12;
@@ -98,5 +99,68 @@ function buildQueueRow(disabled = false)
     );
 }
 
-module.exports.buildQueueEmbed = buildQueueEmbed;
-module.exports.buildQueueRow = buildQueueRow;
+async function fillQueue(guild, interaction, size) 
+{
+    const allUsers = eloRepo.sortTopUsers();
+    if (allUsers.length < size) {
+        await interaction.editReply({
+            content: `Not enough registered users in the DB. Need ${size}, only have ${allUsers.length}.`,
+        });
+        return;
+    }
+
+    // Shuffle and fill queue with dummy IDs using GHOST_ prefix for non-real members
+    const shuffled = allUsers.sort(() => Math.random() - 0.5).slice(0, size);
+    shuffled.forEach(u => matchState.queue.players.add(u.id));
+
+    // Update the queue embed to show filled players
+    const usernames = shuffled.map(u => u.username);
+    const channel = await guild.channels.fetch(matchState.queue.channelId);
+    const message = await channel.messages.fetch(matchState.queue.messageId);
+
+    await message.edit({
+        embeds: [buildQueueEmbed(usernames, size)],
+        components: [buildQueueRow()],
+    });
+
+    // Trigger the same queue-full logic by faking a queue_join interaction
+    // by directly calling the balancer and match start
+    clearTimeout(matchState.queue.timeoutHandle);
+
+    const profiles = shuffled.map(u => eloRepo.getUserStats(u.id));
+    const { teamA, teamB, eloA, eloB, eloDiff } = balanceTeams(profiles);
+
+    const matchEmbed = new EmbedBuilder()
+        .setTitle('⚔️ [TEST] Match Started!')
+        .setDescription('Simulated match — ELO **will** update on result.')
+        .setColor(0xFEE75C)
+        .addFields(
+            { name: `Team A (${eloA} ELO)`, value: teamA.map(p => `• ${p.username}`).join('\n'), inline: true },
+            { name: `Team B (${eloB} ELO)`, value: teamB.map(p => `• ${p.username}`).join('\n'), inline: true },
+            { name: 'ELO Difference', value: `${eloDiff}` },
+        )
+        .setFooter({ text: 'Host: click below to report the winner, or cancel to discard.' });
+
+    const resultRow = new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId('match_win_a').setLabel('Team A Won').setStyle(ButtonStyle.Primary),
+        new ButtonBuilder().setCustomId('match_win_b').setLabel('Team B Won').setStyle(ButtonStyle.Danger),
+        new ButtonBuilder().setCustomId('match_cancel').setLabel('Cancel Match').setStyle(ButtonStyle.Secondary),
+    );
+
+    const matchMsg = await channel.send({ embeds: [matchEmbed], components: [resultRow] });
+
+    matchState.match = {
+        messageId: matchMsg.id,
+        channelId: matchMsg.channelId,
+        teamA: teamA.map(p => p.user_id),
+        teamB: teamB.map(p => p.user_id),
+    };
+    matchState.queue = null;
+
+    await message.edit({
+        embeds: [new EmbedBuilder().setTitle('[TEST] Queue Filled — Match Started!').setColor(0x57F287)],
+        components: [],
+    });
+}
+
+module.exports = { buildQueueEmbed, buildQueueRow, fillQueue };
