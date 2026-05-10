@@ -275,7 +275,7 @@ module.exports = {
                 .map(id => {
                     const p = eloRepo.getUserStats(id);
                     return p && p.current_streak >= 2
-                        ? `**${p.username}** is on a ${p.current_streak}-win streak!`
+                        ? `🔥 **${p.username}** is on a ${p.current_streak}-win streak!`
                         : null;
                 })
                 .filter(Boolean);

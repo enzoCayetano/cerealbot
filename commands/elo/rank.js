@@ -1,6 +1,7 @@
-const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType } = require('discord.js');
+const { SlashCommandBuilder, AttachmentBuilder } = require('discord.js');
 const eloRepo = require('../../db/eloRepo');
 const { sendErrorLog } = require('../../utils/logger');
+const { generateProfileCard } = require('../../utils/profileCard');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -23,37 +24,22 @@ module.exports = {
 
         try
         {
-            const member = await interaction.guild.members.fetch(userId);
-            const profile = eloRepo.getUserStats(userId, username);
+            await interaction.deferReply();
 
-            if (!profile)
-            {
-                return await interaction.reply({
-                    content: `${targetUser.username} is currently not registered yet!`
+            const member = await interaction.guild.members.fetch(userId);
+            const profile = eloRepo.getUserStats(userId);
+
+            if (!profile) {
+                return await interaction.editReply({
+                    content: `${targetUser.username} is not registered yet!`,
                 });
             }
 
-            const winrate = profile.games_played > 0
-                ? ((profile.wins / profile.games_played) * 100).toFixed(1)
-                : '0.0';
+            const avatarURL = member.displayAvatarURL({ extension: 'png', forceStatic: true });
+            const imageBuffer = await generateProfileCard(profile, avatarURL);
 
-            const embed = new EmbedBuilder()
-                .setTitle(`${profile.username}'s Profile`)
-                .setThumbnail(member.displayAvatarURL())
-                .setColor(0x5865F2) // change this to MR rank colors later
-                .addFields(
-                    { name: 'ELO',         value: `${profile.elo}`,          inline: true },
-                    { name: 'Peak ELO',         value: `${profile.highest_elo}`,          inline: true },
-                    { name: 'Rank',         value: `#${profile.rank}`,        inline: true },
-                    { name: 'Wins',         value: `${profile.wins}`,         inline: true },
-                    { name: 'Losses',       value: `${profile.losses}`,       inline: true },
-                    { name: 'Streak',       value: `${profile.current_streak} win(s)`, inline: true },
-                    { name: 'Games Played', value: `${profile.games_played}`, inline: true },
-                    { name: 'Winrate',      value: `${winrate}%`,             inline: true },
-                )
-                .setFooter({ text: `Last played: ${new Date(profile.last_played).toLocaleDateString()}` });
-
-            await interaction.reply({ embeds: [embed] });
+            const attachment = new AttachmentBuilder(imageBuffer, { name: 'profile.png' });
+            await interaction.editReply({ files: [attachment] });
         }
         catch (err)
         {
