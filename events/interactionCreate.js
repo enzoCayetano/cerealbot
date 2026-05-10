@@ -86,11 +86,14 @@ module.exports = {
 
             matchState.queue.players.add(user.id);
             const playerList = [...matchState.queue.players];
-            const usernames = playerList.map(id => eloRepo.getUserStats(id)?.username ?? id);
+            const playerObjects = playerList.map(id => {
+                const p = eloRepo.getUserStats(id);
+                return { username: p?.username ?? id, elo: p?.elo ?? 1000 };
+            });
 
             // Show Start Match button when full, but don't auto-start
             await interaction.update({
-                embeds: [buildQueueEmbed(usernames, QUEUE_SIZE)],
+                embeds: [buildQueueEmbed(playerObjects, matchState.queue.size ?? QUEUE_SIZE)],
                 components: [buildQueueRow(false, playerList.length, matchState.queue.size ?? QUEUE_SIZE)],
             });
             return;
@@ -104,10 +107,13 @@ module.exports = {
 
             matchState.queue.players.delete(user.id);
             const playerList = [...matchState.queue.players];
-            const usernames = playerList.map(id => eloRepo.getUserStats(id)?.username ?? id);
+            const playerObjects = playerList.map(id => {
+                const p = eloRepo.getUserStats(id);
+                return { username: p?.username ?? id, elo: p?.elo ?? 1000 };
+            });
 
             await interaction.update({
-                embeds: [buildQueueEmbed(usernames, QUEUE_SIZE)],
+                embeds: [buildQueueEmbed(playerObjects, matchState.queue.size ?? QUEUE_SIZE)],
                 components: [buildQueueRow(false, playerList.length, matchState.queue.size ?? QUEUE_SIZE)],
             });
             return;
@@ -164,8 +170,16 @@ module.exports = {
                     .setTitle('Match Started!')
                     .setColor(0x57F287)
                     .addFields(
-                        { name: `Team A (${eloA} ELO)`, value: teamA.map(p => `• ${p.username}`).join('\n'), inline: true },
-                        { name: `Team B (${eloB} ELO)`, value: teamB.map(p => `• ${p.username}`).join('\n'), inline: true },
+                        {
+                            name: `Team A (${eloA} ELO avg)`,
+                            value: teamA.map(p => `• **${p.username}** — ${p.elo} ELO`).join('\n'),
+                            inline: true,
+                        },
+                        {
+                            name: `Team B (${eloB} ELO avg)`,
+                            value: teamB.map(p => `• **${p.username}** — ${p.elo} ELO`).join('\n'),
+                            inline: true,
+                        },
                         { name: 'ELO Difference', value: `${eloDiff}` },
                     )
                     .setFooter({ text: 'Host: Click below to report the winner, or cancel to discard.' });
@@ -236,24 +250,40 @@ module.exports = {
             if (!matchState.match)
                 return interaction.reply({ content: 'No active match found.', ephemeral: true });
 
+            // snapshot ELO before update
+            const beforeA = matchState.match.teamA.map(id => {
+                const p = eloRepo.getUserStats(id);
+                return { id, username: p?.username ?? id, elo: p?.elo ?? 1000 };
+            });
+            const beforeB = matchState.match.teamB.map(id => {
+                const p = eloRepo.getUserStats(id);
+                return { id, username: p?.username ?? id, elo: p?.elo ?? 1000 };
+            });
+
             const winner = customId === 'match_win_a' ? 'A' : 'B';
             const { teamA, teamB } = matchState.match;
             const pointChange = eloRepo.updateMatchResults(teamA, teamB, winner);
 
             const winnerLabel = winner === 'A' ? 'Team A' : 'Team B';
-            const loserLabel = winner === 'A' ? 'Team B' : 'Team A';
+            const loserLabel  = winner === 'A' ? 'Team B' : 'Team A';
 
-            // fetch usernames for results
-            const teamANames = teamA.map(id => eloRepo.getUserStats(id)?.username ?? id);
-            const teamBNames = teamB.map(id => eloRepo.getUserStats(id)?.username ?? id);
+            const winnerBefore = winner === 'A' ? beforeA : beforeB;
+            const loserBefore  = winner === 'A' ? beforeB : beforeA;
 
             const resultEmbed = new EmbedBuilder()
                 .setTitle(`${winnerLabel} Wins!`)
-                .setColor(winner === 'A' ? 0x5865F2: 0xED4245)
+                .setColor(winner === 'A' ? 0x5865F2 : 0xED4245)
                 .addFields(
-                    { name: `Team A`, value: teamANames.join('\n'), inline: true },
-                    { name: `Team B`, value: teamBNames.join('\n'), inline: true },
-                    { name: 'ELO Change', value: `Winner: **+${pointChange}** | Loser: **-${pointChange}**` },
+                    {
+                        name: `${winnerLabel} ✅`,
+                        value: winnerBefore.map(p => `• **${p.username}** — ${p.elo} → ${p.elo + pointChange} ELO (+${pointChange})`).join('\n'),
+                        inline: true,
+                    },
+                    {
+                        name: `${loserLabel} ❌`,
+                        value: loserBefore.map(p => `• **${p.username}** — ${p.elo} → ${p.elo - pointChange} ELO (-${pointChange})`).join('\n'),
+                        inline: true,
+                    },
                 )
                 .setTimestamp();
 

@@ -75,11 +75,15 @@ module.exports = {
 
 function buildQueueEmbed(players, total)
 {
+    const playerList = players.length > 0
+        ? players.map(p => `• **${p.username}** — ${p.elo} ELO`).join('\n')
+        : 'None';
+
     return new EmbedBuilder()
         .setTitle('Match Queue')
         .setDescription(`Click **Join** to enter the queue. You must be in the <#${AWAITING_VC_ID}> voice channel.`)
         .addFields(
-            { name: `Players (${players.length}/${total})`, value: players.length > 0 ? players.map(p => `• ${p}`).join('\n') : 'None' }
+            { name: `Players (${players.length}/${total})`, value: playerList }
         )
         .setColor(0x5865F2);
 }
@@ -130,13 +134,13 @@ async function fillQueue(guild, interaction, size)
     const shuffled = allUsers.sort(() => Math.random() - 0.5).slice(0, size);
     shuffled.forEach(u => matchState.queue.players.add(u.id));
 
-    const usernames = shuffled.map(u => u.username);
+    const playerObjects = shuffled.map(u => ({ username: u.username, elo: u.elo }));
     const channel = await guild.channels.fetch(matchState.queue.channelId);
     const message = await channel.messages.fetch(matchState.queue.messageId);
 
     // Just fill the queue and show the Start Match button — let the host press it
     await message.edit({
-        embeds: [buildQueueEmbed(usernames, size)],
+        embeds: [buildQueueEmbed(playerObjects, size)],
         components: [buildQueueRow(false, size, size)],
     });
 }
