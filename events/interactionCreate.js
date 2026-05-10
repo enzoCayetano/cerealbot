@@ -4,7 +4,6 @@ const eloRepo = require('../db/eloRepo');
 const matchState = require('../utils/matchState');
 const { balanceTeams } = require('../utils/teamBalancer');
 const { buildQueueEmbed, buildQueueRow } = require('../commands/admin/startqueue');
-const { match } = require('node:assert');
 
 const QUEUE_SIZE = 12;
 
@@ -72,80 +71,28 @@ module.exports = {
         if (customId === 'queue_join')
         {
             if (!matchState.queue)
-            return interaction.reply({ content: 'No active queue.', ephemeral: true });
+                return interaction.reply({ content: 'No active queue.', ephemeral: true });
 
             const profile = eloRepo.getUserStats(user.id);
-            if (!profile) return interaction.reply({ content: 'You are not registered. User `/register` first.', ephemeral: true });
+            if (!profile)
+                return interaction.reply({ content: 'You are not registered. Use `/register` first.', ephemeral: true });
 
             const member = await guild.members.fetch(user.id);
-            if (member.voice.channelId !== AWAITING_VC_ID) return interaction.reply({ content: `You must be in <#${AWAITING_VC_ID}> to join the queue.`, ephemeral: true });
+            if (member.voice.channelId !== AWAITING_VC_ID)
+                return interaction.reply({ content: `You must be in <#${AWAITING_VC_ID}> to join the queue.`, ephemeral: true });
 
-            if (matchState.queue.players.has(user.id)) return interaction.reply({ content: 'You are already in the queue.', ephemeral: true });
+            if (matchState.queue.players.has(user.id))
+                return interaction.reply({ content: 'You are already in the queue.', ephemeral: true });
 
             matchState.queue.players.add(user.id);
             const playerList = [...matchState.queue.players];
-
-            // queue full
-            if (playerList.length >= QUEUE_SIZE)
-            {
-                clearTimeout(matchState.queue.timeoutHandle);
-
-                const profiles = playerList.map(id => eloRepo.getUserStats(id));
-                const { teamA, teamB, eloA, eloB, eloDiff } = balanceTeams(profiles);
-
-                for (const p of teamA)
-                {
-                    try { await (await guild.members.fetch(p.user_id)).voice.setChannel(TEAM1_VC_ID); }
-                    catch (_) {}
-                }
-
-                for (const p of teamB)
-                {
-                    try { await (await guild.members.fetch(p.user_id)).voice.setChannel(TEAM2_VC_ID); }
-                    catch (_) {}
-                }
-
-                const matchEmbed = new EmbedBuilder()
-                    .setTitle('Ongoing Match')
-                    .setColor(0x57F287)
-                    .addFields(
-                        { name: `Team A (${eloA} ELO)`, value: teamA.map(p => `• ${p.username}`).join('\n'), inline: true },
-                        { name: `Team B (${eloB} ELO)`, value: teamB.map(p => `• ${p.username}`).join('\n'), inline: true },
-                        { name: 'ELO Difference', value: `${eloDiff}` },
-                    )
-                    .setFooter({ text: 'Host: click the button below to report the winner.' });
-
-                const resultRow = new ActionRowBuilder().addComponents(
-                    new ButtonBuilder().setCustomId('match_win_a').setLabel('Team A Won').setStyle(ButtonStyle.Primary),
-                    new ButtonBuilder().setCustomId('match_win_b').setLabel('Team B Won').setStyle(ButtonStyle.Danger),
-                );
-
-                const channel = await guild.channel(matchState.queue.channelId);
-                const matchMsg = await channel.send({ embeds: [matchEmbed], components: [resultRow] });
-
-                matchState.match = {
-                    messageId: matchMsg.id,
-                    channelId: matchMsg.channelId,
-                    teamA: teamA.map(p => p.user_id),
-                    teamB: teamB.map(p => p.user_id),
-                };
-                matchState.queue = null;
-
-                await interaction.update({
-                    embeds: [new EmbedBuilder().setTitle('Queue Full - Ongoing Match!').setColor(0x57F287)],
-                    components: [],
-                });
-
-                return;
-            }
-
-            // if queue not full
             const usernames = playerList.map(id => eloRepo.getUserStats(id)?.username ?? id);
+
+            // Show Start Match button when full, but don't auto-start
             await interaction.update({
                 embeds: [buildQueueEmbed(usernames, QUEUE_SIZE)],
-                components: [buildQueueRow()],
+                components: [buildQueueRow(false, playerList.length, matchState.queue.size ?? QUEUE_SIZE)],
             });
-
             return;
         }
 
@@ -153,7 +100,7 @@ module.exports = {
         if (customId === 'queue_leave')
         {
             if (!matchState.queue || !matchState.queue.players.has(user.id))
-                return interaction.reply({ content: 'You are not in the queue.', ephemeral: true });
+            return interaction.reply({ content: 'You are not in the queue.', ephemeral: true });
 
             matchState.queue.players.delete(user.id);
             const playerList = [...matchState.queue.players];
@@ -161,9 +108,74 @@ module.exports = {
 
             await interaction.update({
                 embeds: [buildQueueEmbed(usernames, QUEUE_SIZE)],
-                components: [buildQueueRow()],
+                components: [buildQueueRow(false, playerList.length, matchState.queue.size ?? QUEUE_SIZE)],
             });
+            return;
+        }
 
+        // ---- QUEUE START ----
+        if (customId === 'queue_start')
+        {
+            const member = await guild.members.fetch(user.id);
+            if (!member.roles.cache.has(HOST_ROLE_ID))
+                return interaction.reply({ content: 'Only hosts can start the match.', ephemeral: true });
+
+            if (!matchState.queue)
+                return interaction.reply({ content: 'No active queue.', ephemeral: true });
+
+            const playerList = [...matchState.queue.players];
+            const requiredSize = matchState.queue.size ?? QUEUE_SIZE;
+            if (playerList.length < requiredSize)
+                return interaction.reply({ content: `Not enough players. Need ${requiredSize}, have ${playerList.length}.`, ephemeral: true });
+
+            clearTimeout(matchState.queue.timeoutHandle);
+
+            const profiles = playerList.map(id => eloRepo.getUserStats(id));
+            const { teamA, teamB, eloA, eloB, eloDiff } = balanceTeams(profiles);
+
+            // Move players to team VCs
+            for (const p of teamA)
+            {
+                try { await (await guild.members.fetch(p.user_id)).voice.setChannel(TEAM1_VC_ID); }
+                catch (_) {}
+            }
+            for (const p of teamB)
+            {
+                try { await (await guild.members.fetch(p.user_id)).voice.setChannel(TEAM2_VC_ID); }
+                catch (_) {}
+            }
+
+            const matchEmbed = new EmbedBuilder()
+                .setTitle('⚔️ Match Started!')
+                .setColor(0x57F287)
+                .addFields(
+                    { name: `🔵 Team A (${eloA} ELO)`, value: teamA.map(p => `• ${p.username}`).join('\n'), inline: true },
+                    { name: `🔴 Team B (${eloB} ELO)`, value: teamB.map(p => `• ${p.username}`).join('\n'), inline: true },
+                    { name: 'ELO Difference', value: `${eloDiff}` },
+                )
+                .setFooter({ text: 'Host: click below to report the winner, or cancel to discard.' });
+
+            const resultRow = new ActionRowBuilder().addComponents(
+                new ButtonBuilder().setCustomId('match_win_a').setLabel('🔵 Team A Won').setStyle(ButtonStyle.Primary),
+                new ButtonBuilder().setCustomId('match_win_b').setLabel('🔴 Team B Won').setStyle(ButtonStyle.Danger),
+                new ButtonBuilder().setCustomId('match_cancel').setLabel('Cancel Match').setStyle(ButtonStyle.Secondary),
+            );
+
+            const channel = await guild.channels.fetch(matchState.queue.channelId);
+            const matchMsg = await channel.send({ embeds: [matchEmbed], components: [resultRow] });
+
+            matchState.match = {
+                messageId: matchMsg.id,
+                channelId: matchMsg.channelId,
+                teamA: teamA.map(p => p.user_id),
+                teamB: teamB.map(p => p.user_id),
+            };
+            matchState.queue = null;
+
+            await interaction.update({
+                embeds: [new EmbedBuilder().setTitle('✅ Queue Full — Match Started!').setColor(0x57F287)],
+                components: [],
+            });
             return;
         }
 
