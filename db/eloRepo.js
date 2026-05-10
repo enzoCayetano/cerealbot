@@ -108,39 +108,44 @@ function sortTopUsers()
 
 function updateMatchResults(teamA_ids, teamB_ids, winner) 
 {
+    const VARIANCE = 5;
+    const STREAK_BONUS_PER_LEVEL = 0.05; // 5% per streak level
+    const STREAK_CAP = 3;
+
+
     // fetch elos
     const allIds = [...teamA_ids, ...teamB_ids];
     const placeholders = allIds.map(() => '?').join(',');
     const players = db.prepare(`
-        SELECT user_id, elo FROM users WHERE user_id IN (${placeholders})
+        SELECT user_id, elo, current_streak FROM users WHERE user_id IN (${placeholders})
     `).all(...allIds);
 
-    const getElo = (id) => players.find(p => p.user_id === id)?.elo ?? 1000;
+    const getPlayer = (id) => players.find(p => p.user_id === id) ?? { elo: 1000, current_streak: 0 };
 
     // calculate average team elo
-    const avgA = teamA_ids.reduce((sum, id) => sum + getElo(id), 0) / teamA_ids.length;
-    const avgB = teamB_ids.reduce((sum, id) => sum + getElo(id), 0) / teamB_ids.length;
+    const avgA = teamA_ids.reduce((sum, id) => sum + getPlayer(id).elo, 0) / teamA_ids.length;
+    const avgB = teamB_ids.reduce((sum, id) => sum + getPlayer(id).elo, 0) / teamB_ids.length;
 
     const expectedA = 1 / (1 + Math.pow(10, (avgB - avgA) / 400));
 
     const K = 32;
     const scoreA = winner === 'A' ? 1 : 0;
-    const pointChange = Math.abs(Math.round(K * (scoreA - expectedA)));
+    const basePointChange = Math.round(K * (scoreA - expectedA));
 
     const winnerIds = winner === 'A' ? teamA_ids : teamB_ids;
     const loserIds  = winner === 'A' ? teamB_ids : teamA_ids;
-    const winPoints = winner === 'A' ? pointChange : -pointChange;
+    const winPoints = winner === 'A' ? basePointChange : -basePointChange;
 
     const now = new Date().toISOString();
 
     const updateWinner = db.prepare(`
         UPDATE users SET
-            elo          = MAX(0, elo + ?),
-            highest_elo  = MAX(highest_elo, elo + ?),
-            wins         = wins + 1,
-            games_played = games_played + 1,
+            elo            = MAX(0, elo + ?),
+            highest_elo    = MAX(highest_elo, elo + ?),
+            wins           = wins + 1,
+            games_played   = games_played + 1,
             current_streak = current_streak + 1,
-            last_played  = ?
+            last_played    = ?
         WHERE user_id = ?
     `);
 
@@ -154,18 +159,44 @@ function updateMatchResults(teamA_ids, teamB_ids, winner)
         WHERE user_id = ?
     `);
 
+    const changes = {};
+
     const transaction = db.transaction(() => {
-        winnerIds.forEach(id => {
-            if (!id.startsWith('GHOST_')) updateWinner.run(winPoints, winPoints, now, id);
-        });
-        loserIds.forEach(id => {
-            if (!id.startsWith('GHOST_')) updateLoser.run(winPoints, now, id);
-        });
+        for (const id of winnerIds)
+        {
+            if (id.startsWith('GHOST_')) continue;
+
+            const player = getPlayer(id);
+
+            const streakLevel = Math.min(player.current_streak, STREAK_CAP);
+            const streakMultiplier = 1 + (streakLevel * STREAK_BONUS_PER_LEVEL);
+
+            // random variance: ±5
+            const variance = Math.floor(Math.random() * (VARIANCE * 2 + 1)) - VARIANCE;
+
+            const finalGain = Math.round(winPoints * streakMultiplier) + variance;
+
+            updateWinner.run(finalGain, finalGain, now, id);
+            changes[id] = finalGain;
+        }
+
+        for (const id of loserIds)
+        {
+            if (id.startsWith('GHOST_')) continue;
+
+            // variance only for losers, no streak penalty on loss amount
+            const variance = Math.floor(Math.random() * (VARIANCE * 2 + 1)) - VARIANCE;
+            const finalLoss = winPoints + variance;
+
+            updateLoser.run(finalLoss, now, id);
+            changes[id] = -finalLoss;
+        }
     });
 
     transaction();
     updateRanks();
-    return pointChange;
+    
+    return { basePointChange, changes };
 }
 
 module.exports = {

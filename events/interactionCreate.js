@@ -262,13 +262,13 @@ module.exports = {
 
             const winner = customId === 'match_win_a' ? 'A' : 'B';
             const { teamA, teamB } = matchState.match;
-            const pointChange = eloRepo.updateMatchResults(teamA, teamB, winner);
 
             const winnerLabel = winner === 'A' ? 'Team A' : 'Team B';
             const loserLabel  = winner === 'A' ? 'Team B' : 'Team A';
-
             const winnerBefore = winner === 'A' ? beforeA : beforeB;
             const loserBefore  = winner === 'A' ? beforeB : beforeA;
+
+            const { basePointChange, changes } = eloRepo.updateMatchResults(teamA, teamB, winner);
 
             const resultEmbed = new EmbedBuilder()
                 .setTitle(`${winnerLabel} Wins!`)
@@ -276,12 +276,20 @@ module.exports = {
                 .addFields(
                     {
                         name: `${winnerLabel} ✅`,
-                        value: winnerBefore.map(p => `• **${p.username}** — ${p.elo} → ${p.elo + pointChange} ELO (+${pointChange})`).join('\n'),
+                        value: winnerBefore.map(p => {
+                            const delta = changes[p.id];
+                            const sign = delta >= 0 ? '+' : '';
+                            return `• **${p.username}** — ${p.elo} → ${p.elo + delta} ELO (${sign}${delta})`;
+                        }).join('\n'),
                         inline: true,
                     },
                     {
                         name: `${loserLabel} ❌`,
-                        value: loserBefore.map(p => `• **${p.username}** — ${p.elo} → ${p.elo - pointChange} ELO (-${pointChange})`).join('\n'),
+                        value: loserBefore.map(p => {
+                            const delta = changes[p.id];
+                            const sign = delta >= 0 ? '+' : '';
+                            return `• **${p.username}** — ${p.elo} → ${p.elo + delta} ELO (${sign}${delta})`;
+                        }).join('\n'),
                         inline: true,
                     },
                 )
