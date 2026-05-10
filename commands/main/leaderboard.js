@@ -1,5 +1,6 @@
-const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType } = require('discord.js');
+const { SlashCommandBuilder, AttachmentBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType } = require('discord.js');
 const eloRepo = require('../../db/eloRepo');
+const { generateLeaderboardCard } = require('../../utils/leaderboardCard');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -15,76 +16,53 @@ module.exports = {
         const ITEMS_PER_PAGE = 10;
         const TOTAL_PAGES = Math.ceil(users.length / ITEMS_PER_PAGE);
 
-        // Embed
-        const generateEmbed = (page) => {
-            const start = page * ITEMS_PER_PAGE;
-            const end = start + ITEMS_PER_PAGE;
-            const currentUsers = users.slice(start, end);
+        const getButtons = (page) => new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+                .setCustomId('lb_prev')
+                .setLabel('Previous')
+                .setStyle(ButtonStyle.Secondary)
+                .setDisabled(page === 0),
+            new ButtonBuilder()
+                .setCustomId('lb_next')
+                .setLabel('Next')
+                .setStyle(ButtonStyle.Secondary)
+                .setDisabled(page === TOTAL_PAGES - 1),
+        );
 
-            const leaderboardString = currentUsers.map((user, index) => {
-                const rank = start + index + 1;
-                const prefix = `**#${rank}**`;
-                return `${prefix}.  ${user.username || 'Unknown'}: \`${user.elo}\` ELO`;
-            }).join('\n');
+        await interaction.deferReply();
 
-            return new EmbedBuilder()
-                .setTitle('Server Leaderboard')
-                .setColor(0xFFA500)
-                .setDescription(leaderboardString)
-                .setFooter({ text: `Page ${page + 1} of ${TOTAL_PAGES}` })
-                .setTimestamp();
-        };
+        const imageBuffer = await generateLeaderboardCard(users, currentPage, TOTAL_PAGES);
+        const attachment = new AttachmentBuilder(imageBuffer, { name: 'leaderboard.png' });
 
-        // Buttons
-        const getButtons = (page) => {
-            return new ActionRowBuilder().addComponents(
-                new ButtonBuilder()
-                    .setCustomId('prev')
-                    .setLabel('Previous')
-                    .setStyle(ButtonStyle.Primary)
-                    .setDisabled(page === 0),
-                new ButtonBuilder()
-                    .setCustomId('next')
-                    .setLabel('Next')
-                    .setStyle(ButtonStyle.Primary)
-                    .setDisabled(page === TOTAL_PAGES - 1)
-            );
-        };
-
-        // Display page & buttons if more than one page
-        const response = await interaction.reply({
-            embeds: [generateEmbed(currentPage)],
+        const response = await interaction.editReply({
+            files: [attachment],
             components: TOTAL_PAGES > 1 ? [getButtons(currentPage)] : [],
         });
 
-        // Button logic
         if (TOTAL_PAGES <= 1) return;
 
         const collector = response.createMessageComponentCollector({
             componentType: ComponentType.Button,
-            time: 60000, // Buttons work for 60 seconds
+            time: 60000,
         });
 
         collector.on('collect', async (i) => {
             if (i.user.id !== interaction.user.id)
-            {
-                return i.reply({ 
-                    content: 'You did not run this command.',
-                    ephemeral: true,
-                });
-            }
+                return i.reply({ content: 'You did not run this command.', ephemeral: true });
 
-            if (i.customId === 'next') currentPage++;
-            else if (i.customId === 'prev') currentPage--;
+            if (i.customId === 'lb_next') currentPage++;
+            else if (i.customId === 'lb_prev') currentPage--;
 
-            await i.update({
-                embeds: [generateEmbed(currentPage)],
-                components: [getButtons(currentPage)]
-            });
+            await i.deferUpdate();
+
+            const newBuffer = await generateLeaderboardCard(users, currentPage, TOTAL_PAGES);
+            const newAttachment = new AttachmentBuilder(newBuffer, { name: 'leaderboard.png' });
+
+            await i.editReply({ files: [newAttachment], components: [getButtons(currentPage)] });
         });
 
         collector.on('end', () => {
-            interaction.editReply({ compoentns: [] }).catch(() => null);
+            interaction.editReply({ components: [] }).catch(() => null);
         });
-    }
-}
+    },
+};
