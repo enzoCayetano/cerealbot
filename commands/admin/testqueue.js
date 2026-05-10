@@ -9,7 +9,7 @@ const QUEUE_SIZE = 12;
 
 module.exports = {
     data: new SlashCommandBuilder()
-        .setName('testqueue')
+        .setName('test-queue')
         .setDescription('Simulate a full queue with real DB users. (Host/Developer only)')
         .addIntegerOption(option =>
             option.setName('size')
@@ -34,7 +34,7 @@ module.exports = {
 
         // Open the real queue
         const embed = buildQueueEmbed([], size);
-        const row = buildQueueRow();
+        const row = buildQueueRow(false, 0, QUEUE_SIZE);
         const reply = await interaction.reply({ embeds: [embed], components: [row], fetchReply: true });
 
         const timeoutHandle = setTimeout(async () => {
@@ -53,6 +53,7 @@ module.exports = {
             channelId: reply.channelId,
             players: new Set(),
             timeoutHandle,
+            size,
         };
 
         // Immediately fill it with DB users
