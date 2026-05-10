@@ -1,4 +1,6 @@
-const { createCanvas, loadImage } = require('@napi-rs/canvas');
+const { createCanvas, loadImage, GlobalFonts } = require('@napi-rs/canvas');
+const path = require('path');
+GlobalFonts.registerFromPath(path.join(__dirname, '../assets/fonts/Outfit-Bold.ttf'), 'Outfit');
 
 const W = 600;
 const ROW_H = 52;
@@ -57,12 +59,12 @@ async function generateLeaderboardCard(users, page, totalPages) {
 
     // ── Header ───────────────────────────────────────────────────
     ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 26px sans-serif';
+    ctx.font = 'bold 26px "Outfit"';
     ctx.textAlign = 'center';
     ctx.fillText('Server Leaderboard', W / 2, 42);
 
     ctx.fillStyle = '#8b8fa8';
-    ctx.font = '13px sans-serif';
+    ctx.font = '13px "Outfit"';
     ctx.fillText(`Page ${page + 1} of ${totalPages}`, W / 2, 64);
 
     // Divider
@@ -96,26 +98,26 @@ async function generateLeaderboardCard(users, page, totalPages) {
         // Rank number
         const rankColor = globalRank <= 3 ? RANK_COLORS[globalRank - 1] : '#8b8fa8';
         ctx.fillStyle = rankColor;
-        ctx.font = globalRank <= 3 ? 'bold 15px sans-serif' : '14px sans-serif';
+        ctx.font = globalRank <= 3 ? 'bold 15px "Outfit"' : '14px "Outfit"';
         ctx.textAlign = 'left';
         const rankText = `#${globalRank}`;
         ctx.fillText(rankText, PADDING + 12, y + ROW_H / 2 + 5);
 
         // Username
         ctx.fillStyle = globalRank <= 3 ? '#ffffff' : '#d4d7e0';
-        ctx.font = globalRank <= 3 ? 'bold 15px sans-serif' : '14px sans-serif';
+        ctx.font = globalRank <= 3 ? 'bold 15px "Outfit"' : '14px "Outfit"';
         ctx.fillText(user.username ?? 'Unknown', PADDING + 56, y + ROW_H / 2 + 5);
 
         // ELO — right aligned
         ctx.textAlign = 'right';
         ctx.fillStyle = '#FFA500';
-        ctx.font = 'bold 14px sans-serif';
+        ctx.font = 'bold 14px "Outfit"';
         ctx.fillText(`${user.elo} ELO`, W - PADDING - 12, y + ROW_H / 2 + 5);
 
         // Win/loss if available
         if (user.wins !== undefined && user.losses !== undefined) {
             ctx.fillStyle = '#8b8fa8';
-            ctx.font = '12px sans-serif';
+            ctx.font = '12px "Outfit"';
             ctx.fillText(`${user.wins}W / ${user.losses}L`, W - PADDING - 12, y + ROW_H / 2 + 20);
         }
 

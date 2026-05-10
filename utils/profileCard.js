@@ -1,9 +1,8 @@
 const { createCanvas, loadImage, GlobalFonts } = require('@napi-rs/canvas');
+const path = require('path');
+GlobalFonts.registerFromPath(path.join(__dirname, '../assets/fonts/Outfit-Bold.ttf'), 'Outfit');
 
 const W = 800, H = 250;
-
-// Optional: register a custom font
-// GlobalFonts.registerFromPath('./assets/fonts/YourFont.ttf', 'CustomFont');
 
 function drawRoundRect(ctx, x, y, w, h, r) {
     ctx.beginPath();
@@ -34,12 +33,12 @@ function drawStatBox(ctx, x, y, label, value, accent = '#5865F2') {
 
     // Label
     ctx.fillStyle = '#8b8fa8';
-    ctx.font = '11px sans-serif';
+    ctx.font = '11px "Outfit"';
     ctx.fillText(label.toUpperCase(), x + 12, y + 20);
 
     // Value
     ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 20px sans-serif';
+    ctx.font = 'bold 20px "Outfit"';
     ctx.fillText(value, x + 12, y + 46);
 }
 
@@ -108,16 +107,16 @@ async function generateProfileCard(profile, avatarURL) {
     const textX = ax + AVATAR_SIZE + 24;
 
     ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 28px sans-serif';
+    ctx.font = 'bold 28px "Outfit"';
     ctx.fillText(profile.username, textX, ay + 32);
 
     ctx.fillStyle = '#8b8fa8';
-    ctx.font = '14px sans-serif';
+    ctx.font = '14px "Outfit"';
     ctx.fillText(`Rank #${profile.rank ?? '—'}`, textX, ay + 52);
 
     // ELO badge
     const eloText = `${profile.elo} ELO`;
-    ctx.font = 'bold 13px sans-serif';
+    ctx.font = 'bold 13px "Outfit"';
     const eloW = ctx.measureText(eloText).width + 20;
     ctx.fillStyle = 'rgba(88,101,242,0.3)';
     drawRoundRect(ctx, textX, ay + 62, eloW, 24, 6);
@@ -131,7 +130,7 @@ async function generateProfileCard(profile, avatarURL) {
     // Streak badge (only if streak >= 2)
     if (profile.current_streak >= 2) {
         const streakText = `Win Streak - ${profile.current_streak}`;
-        ctx.font = 'bold 13px sans-serif';
+        ctx.font = 'bold 13px "Outfit"';
         const sw = ctx.measureText(streakText).width + 20;
         ctx.fillStyle = 'rgba(255,150,50,0.2)';
         drawRoundRect(ctx, textX + eloW + 10, ay + 62, sw, 24, 6);
