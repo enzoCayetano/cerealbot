@@ -7,12 +7,12 @@
 - ~~Better rank/profile display~~ completed
 - ~~change queue to display individual elo~~ completed
 - ~~add command to wipe/delete database~~ completed
+- ~~match history~~ completed
+- ~~better match history display using canvas~~ completed
+- replace match embeds with canvas images
 - add MR ranks to profile and DB
-- ~~match history~~
-- better match history display using canvas
 - add canceled matches to match history
 - team captain functionality
-- replace match embeds with canvas images
 - when registering, change server nickname to username in db
 
 test with joe to see if admin commands work on end user
