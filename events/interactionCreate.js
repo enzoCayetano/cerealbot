@@ -229,5 +229,29 @@ module.exports = {
             await interaction.update({ embeds: [resultEmbed], components: [] });
             return;
         }
+
+        // ---- MATCH CANCEL ----
+        if (customId === 'match_cancel')
+        {
+            const member = await guild.members.fetch(user.id);
+            if (!member.roles.cache.has(HOST_ROLE_ID))
+                return interaction.reply({ content: 'Only hosts can cancel a match.', ephemeral: true });
+
+            if (!matchState.match)
+                return interaction.reply({ content: 'No active match to cancel.', ephemeral: true });
+
+            matchState.match = null;
+
+            await interaction.update({
+                embeds: [
+                    new EmbedBuilder()
+                        .setTitle('Match Cancelled')
+                        .setDescription('The host cancelled the match. No ELO was changed.')
+                        .setColor(0xED4245),
+                ],
+                components: [],
+            });
+            return;
+        }
     },
 };
