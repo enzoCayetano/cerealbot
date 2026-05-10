@@ -8,9 +8,10 @@ module.exports = {
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
 
     async execute(interaction) {
-        db.prepare('DELETE FROM users').run();
-        db.prepare('DELETE FROM matches').run();
         db.prepare('DELETE FROM match_players').run();
+        db.prepare('DELETE FROM matches').run();
+        db.prepare('DELETE FROM users').run();
+        db.prepare("DELETE FROM sqlite_sequence WHERE name = 'matches'").run();
 
         // Reset auto-increment counters if you have any
         db.prepare("DELETE FROM sqlite_sequence WHERE name IN ('users', 'elo_history')").run();
