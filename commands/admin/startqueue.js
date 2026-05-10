@@ -9,7 +9,7 @@ const QUEUE_SIZE = 12;
 
 module.exports = {
     data: new SlashCommandBuilder()
-        .setName('startqueue')
+        .setName('start-queue')
         .setDescription('Open a queue for the next match. (HOST ONLY)'),
 
     async execute(interaction)
@@ -24,7 +24,7 @@ module.exports = {
             });
         }
 
-        if (matchState.queue || matchState.matchState)
+        if (matchState.queue || matchState.match)
         {
             return await interaction.reply({
                 content: 'A queue or match is already active. End it before starting a new one.',
@@ -33,7 +33,7 @@ module.exports = {
         }
 
         const embed = buildQueueEmbed([], QUEUE_SIZE);
-        const row = buildQueueRow();
+        const row = buildQueueRow(false, 0, QUEUE_SIZE);
 
         const reply = await interaction.reply({
             embeds: [embed],
@@ -64,8 +64,13 @@ module.exports = {
             channelId: reply.channelId,
             players: new Set(),
             timeoutHandle,
+            size: QUEUE_SIZE,
         };
     },
+    
+    buildQueueEmbed,
+    buildQueueRow,
+    fillQueue,
 };
 
 function buildQueueEmbed(players, total)
@@ -79,9 +84,9 @@ function buildQueueEmbed(players, total)
         .setColor(0x5865F2);
 }
 
-function buildQueueRow(disabled = false)
+function buildQueueRow(disabled = false, playerCount = 0, queueSize = 12)
 {
-    return new ActionRowBuilder().addComponents(
+    const row = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
             .setCustomId('queue_join')
             .setLabel('Join')
@@ -95,8 +100,21 @@ function buildQueueRow(disabled = false)
         new ButtonBuilder()
             .setCustomId('queue_cancel')
             .setLabel('Cancel Queue')
-            .setStyle(ButtonStyle.Secondary),
+            .setStyle(ButtonStyle.Secondary)
+            .setDisabled(disabled),
     );
+
+    if (playerCount >= queueSize) 
+    {
+        row.addComponents(
+            new ButtonBuilder()
+                .setCustomId('queue_start')
+                .setLabel('Start Match')
+                .setStyle(ButtonStyle.Primary)
+        );
+    }
+
+    return row;
 }
 
 async function fillQueue(guild, interaction, size) 
@@ -109,58 +127,16 @@ async function fillQueue(guild, interaction, size)
         return;
     }
 
-    // Shuffle and fill queue with dummy IDs using GHOST_ prefix for non-real members
     const shuffled = allUsers.sort(() => Math.random() - 0.5).slice(0, size);
     shuffled.forEach(u => matchState.queue.players.add(u.id));
 
-    // Update the queue embed to show filled players
     const usernames = shuffled.map(u => u.username);
     const channel = await guild.channels.fetch(matchState.queue.channelId);
     const message = await channel.messages.fetch(matchState.queue.messageId);
 
+    // Just fill the queue and show the Start Match button — let the host press it
     await message.edit({
         embeds: [buildQueueEmbed(usernames, size)],
-        components: [buildQueueRow()],
-    });
-
-    // Trigger the same queue-full logic by faking a queue_join interaction
-    // by directly calling the balancer and match start
-    clearTimeout(matchState.queue.timeoutHandle);
-
-    const profiles = shuffled.map(u => eloRepo.getUserStats(u.id));
-    const { teamA, teamB, eloA, eloB, eloDiff } = balanceTeams(profiles);
-
-    const matchEmbed = new EmbedBuilder()
-        .setTitle('⚔️ [TEST] Match Started!')
-        .setDescription('Simulated match — ELO **will** update on result.')
-        .setColor(0xFEE75C)
-        .addFields(
-            { name: `Team A (${eloA} ELO)`, value: teamA.map(p => `• ${p.username}`).join('\n'), inline: true },
-            { name: `Team B (${eloB} ELO)`, value: teamB.map(p => `• ${p.username}`).join('\n'), inline: true },
-            { name: 'ELO Difference', value: `${eloDiff}` },
-        )
-        .setFooter({ text: 'Host: click below to report the winner, or cancel to discard.' });
-
-    const resultRow = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId('match_win_a').setLabel('Team A Won').setStyle(ButtonStyle.Primary),
-        new ButtonBuilder().setCustomId('match_win_b').setLabel('Team B Won').setStyle(ButtonStyle.Danger),
-        new ButtonBuilder().setCustomId('match_cancel').setLabel('Cancel Match').setStyle(ButtonStyle.Secondary),
-    );
-
-    const matchMsg = await channel.send({ embeds: [matchEmbed], components: [resultRow] });
-
-    matchState.match = {
-        messageId: matchMsg.id,
-        channelId: matchMsg.channelId,
-        teamA: teamA.map(p => p.user_id),
-        teamB: teamB.map(p => p.user_id),
-    };
-    matchState.queue = null;
-
-    await message.edit({
-        embeds: [new EmbedBuilder().setTitle('[TEST] Queue Filled — Match Started!').setColor(0x57F287)],
-        components: [],
+        components: [buildQueueRow(false, size, size)],
     });
 }
-
-module.exports = { buildQueueEmbed, buildQueueRow, fillQueue };
