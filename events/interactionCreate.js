@@ -84,6 +84,10 @@ module.exports = {
             if (matchState.queue.players.has(user.id))
                 return interaction.reply({ content: 'You are already in the queue.', ephemeral: true });
 
+            const queueSize = matchState.queue.size ?? QUEUE_SIZE;
+            if (matchState.queue.players.size >= queueSize)
+                return interaction.reply({ content: `The queue is already full. (${queueSize}/${queueSize})`, ephemeral: true });
+
             matchState.queue.players.add(user.id);
             const playerList = [...matchState.queue.players];
             const playerObjects = playerList.map(id => {
