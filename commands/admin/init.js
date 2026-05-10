@@ -4,7 +4,7 @@ const eloRepo = require('../../db/eloRepo');
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('elo-init')
-        .setDescription('Initialize elo for new users.')
+        .setDescription('Bulk register all unregistered server members.')
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
     
     async execute(interaction)
@@ -12,16 +12,21 @@ module.exports = {
         await interaction.deferReply({ ephemeral: true });
 
         const members = await interaction.guild.members.fetch();
-        let initialized = 0;
+        let registered = 0;
+        let skipped = 0;
 
-        for (const [memberId, member] of members)
+        for (const [_, member] of members)
         {
             if (member.user.bot) continue;
 
-            await eloRepo.ensureUser(member.id, member.displayName);
-            initialized++;
+            const result = eloRepo.registerUser(member.id, member.user.username);
+
+            if (result.success) registered++;
+            else skipped++;  // already_registered or username_taken
         }
 
-        await interaction.editReply(`Initialized ELO for **${initialized}** users.`);
+        await interaction.editReply(
+            `Done! Registered **${registered}** new users, skipped **${skipped}** already registered.`
+        );
     }
 };
