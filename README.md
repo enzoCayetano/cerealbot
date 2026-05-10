@@ -10,6 +10,7 @@
 - ~~match history~~ completed
 - ~~better match history display using canvas~~ completed
 - replace match embeds with canvas images
+- rename rank to profile
 - add MR ranks to profile and DB
 - add canceled matches to match history
 - team captain functionality
