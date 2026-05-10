@@ -19,10 +19,17 @@ module.exports = {
         {
             if (member.user.bot) continue;
 
-            const result = eloRepo.registerUser(member.id, member.user.username);
+            const sanitized = sanitizeUsername(member.displayName);
+            const withSuffix = `${sanitized}_${member.id.slice(-4)}`;
+
+            // try sanitized name, then fall back to appending last 4 of user ID
+            let result = eloRepo.registerUser(member.id, sanitized);
+
+            if (!result.success && result.reason === 'username_taken')
+                result = eloRepo.registerUser(member.id, withSuffix);
 
             if (result.success) registered++;
-            else skipped++;  // already_registered or username_taken
+            else skipped++; // already_registered
         }
 
         await interaction.editReply(
@@ -30,3 +37,13 @@ module.exports = {
         );
     }
 };
+
+function sanitizeUsername(username)
+{
+    return username
+        .replace(/[^a-zA-Z0-9_-]/g, '_') // replace invalid chars with underscore
+        .replace(/_{2,}/g, '_')           // collapse multiple underscores
+        .replace(/^[-_]+|[-_]+$/g, '')    // trim leading/trailing underscores and hyphens
+        .slice(0, 32)                     // enforce max length
+        || 'user';                        // fallback if result is empty
+}
