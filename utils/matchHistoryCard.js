@@ -9,8 +9,8 @@ const FONT = 'Outfit'; // change to 'sans-serif' if you haven't set up fonts yet
  
 const W = 700;
 const PADDING = 28;
-const HEADER_H = 88;
-const MATCH_H = 100;
+const HEADER_H = 78;
+const MATCH_H = 155;
 const FOOTER_H = 40;
  
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -106,15 +106,15 @@ function drawMatchRow(ctx, match, players, y, targetUserId = null) {
     ctx.strokeStyle = 'rgba(255,255,255,0.06)';
     ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.moveTo(x + 8, y + 28);
-    ctx.lineTo(x + w - 8, y + 28);
+    ctx.moveTo(x + 8, y + 32);
+    ctx.lineTo(x + w - 8, y + 32);
     ctx.stroke();
  
     // Team columns
     const colW = (w - 32) / 2;
     const teamAx = x + 16;
     const teamBx = x + 16 + colW + 16;
-    const teamY  = y + 36;
+    const teamY  = y + 48;
  
     // Team A header
     ctx.textAlign = 'left';
@@ -207,19 +207,11 @@ async function generateMatchHistoryCard(matches, matchPlayers, page, totalPages,
     // ── Header ───────────────────────────────────────────────────
     ctx.textAlign = 'center';
  
-    // Icon strip
-    ctx.fillStyle = 'rgba(88,101,242,0.2)';
-    drawRoundRect(ctx, W / 2 - 18, 16, 36, 36, 8);
-    ctx.fill();
-    ctx.fillStyle = '#5865F2';
-    ctx.font = `bold 20px "${FONT}", sans-serif`;
-    ctx.fillText('⚔', W / 2, 40);
- 
     // Title
     ctx.fillStyle = '#ffffff';
     ctx.font = `700 22px "${FONT}", sans-serif`;
     const title = targetUser ? `${targetUser.username}'s Match History` : 'Recent Matches';
-    ctx.fillText(title, W / 2, 70);
+    ctx.fillText(title, W / 2, 55);
  
     // Header underline
     ctx.strokeStyle = 'rgba(88,101,242,0.4)';
@@ -231,6 +223,7 @@ async function generateMatchHistoryCard(matches, matchPlayers, page, totalPages,
  
     // ── Match rows ───────────────────────────────────────────────
     matches.forEach((match, i) => {
+        if (!match || !match.match_id) return; // ADD THIS
         const players = matchPlayers[match.match_id] ?? [];
         const y = HEADER_H + i * (MATCH_H + 10);
         drawMatchRow(ctx, match, players, y, targetUser?.id ?? null);

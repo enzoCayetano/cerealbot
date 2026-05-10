@@ -37,14 +37,18 @@ module.exports = {
 
         const getPageMatches = (page) => {
             const start = page * ITEMS_PER_PAGE;
-            return matches.slice(start, start + ITEMS_PER_PAGE);
+            return matches
+                .slice(start, start + ITEMS_PER_PAGE)
+                .filter(m => m != null && m.match_id != null);
         };
 
         // Pre-fetch all player data for every match on the current page
         const fetchMatchPlayers = (pageMatches) => {
             const result = {};
-            for (const m of pageMatches) {
-                result[m.match_id] = eloRepo.getMatchPlayers(m.match_id);
+            for (const m of pageMatches) 
+            {
+                const players = eloRepo.getMatchPlayers(m.match_id);
+                result[m.match_id] = players ?? []; // null fallback
             }
             return result;
         };
