@@ -9,3 +9,5 @@
 - add command to wipe/delete database
 - team captain functionality
 - match history
+
+test with joe to see if admin commands work on end user
