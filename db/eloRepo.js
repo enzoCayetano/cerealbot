@@ -106,6 +106,40 @@ function sortTopUsers()
     return users;
 }
 
+function getRecentMatches(limit = 10) 
+{
+    return db.prepare(`
+        SELECT * FROM matches ORDER BY timestamp DESC LIMIT ?
+    `).all(limit);
+}
+
+function getMatchPlayers(matchId) 
+{
+    return db.prepare(`
+        SELECT mp.*, u.username FROM match_players mp
+        LEFT JOIN users u ON mp.user_id = u.user_id
+        WHERE mp.match_id = ?
+    `).all(matchId);
+}
+
+function getUserMatchHistory(userId, limit = 10) 
+{
+    return db.prepare(`
+        SELECT 
+            m.match_id,
+            m.winner_team,
+            m.timestamp,
+            mp.team,
+            mp.elo_before,
+            mp.elo_delta
+        FROM match_players mp
+        JOIN matches m ON mp.match_id = m.match_id
+        WHERE mp.user_id = ?
+        ORDER BY m.timestamp DESC
+        LIMIT ?
+    `).all(userId, limit);
+}
+
 function updateMatchResults(teamA_ids, teamB_ids, winner) 
 {
     const VARIANCE = 5;
@@ -162,34 +196,47 @@ function updateMatchResults(teamA_ids, teamB_ids, winner)
     const changes = {};
 
     const transaction = db.transaction(() => {
+        // Insert match record first to get match_id
+        const matchInsert = db.prepare(`
+            INSERT INTO matches (winner_team, team_a_players, team_b_players)
+            VALUES (?, ?, ?)
+        `).run(winner, teamA_ids.join(','), teamB_ids.join(','));
+
+        const matchId = matchInsert.lastInsertRowid;
+
+        const insertMatchPlayer = db.prepare(`
+            INSERT INTO match_players (match_id, user_id, team, elo_before, elo_delta)
+            VALUES (?, ?, ?, ?, ?)
+        `);
+
         for (const id of winnerIds)
         {
             if (id.startsWith('GHOST_')) continue;
 
             const player = getPlayer(id);
-
             const streakLevel = Math.min(player.current_streak, STREAK_CAP);
             const streakMultiplier = 1 + (streakLevel * STREAK_BONUS_PER_LEVEL);
-
-            // random variance: ±5
             const variance = Math.floor(Math.random() * (VARIANCE * 2 + 1)) - VARIANCE;
-
             const finalGain = Math.round(winPoints * streakMultiplier) + variance;
 
             updateWinner.run(finalGain, finalGain, now, id);
             changes[id] = finalGain;
+
+            insertMatchPlayer.run(matchId, id, winner === 'A' ? 'A' : 'B', player.elo, finalGain);
         }
 
-        for (const id of loserIds)
+        for (const id of loserIds) 
         {
             if (id.startsWith('GHOST_')) continue;
 
-            // variance only for losers, no streak penalty on loss amount
+            const player = getPlayer(id);
             const variance = Math.floor(Math.random() * (VARIANCE * 2 + 1)) - VARIANCE;
             const finalLoss = winPoints + variance;
 
             updateLoser.run(finalLoss, now, id);
             changes[id] = -finalLoss;
+
+            insertMatchPlayer.run(matchId, id, winner === 'A' ? 'B' : 'A', player.elo, -finalLoss);
         }
     });
 
@@ -218,4 +265,7 @@ module.exports = {
     addElo,
     sortTopUsers,
     updateMatchResults,
+    getRecentMatches,
+    getMatchPlayers,
+    getUserMatchHistory,
 };

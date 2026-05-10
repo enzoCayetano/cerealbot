@@ -19,10 +19,18 @@ db.exec(`
     CREATE TABLE IF NOT EXISTS matches (
         match_id INTEGER PRIMARY KEY AUTOINCREMENT,
         winner_team TEXT,
-        elo_change INTEGER,
         timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
         team_a_players TEXT, -- ids comma separated
         team_b_players TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS match_players (
+        match_id INTEGER,
+        user_id TEXT,
+        team TEXT,
+        elo_before INTEGER,
+        elo_delta INTEGER,
+        FOREIGN KEY (match_id) REFERENCES matches(match_id)
     );
 `);
 
