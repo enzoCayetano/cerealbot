@@ -125,7 +125,7 @@ function updateMatchResults(teamA_ids, teamB_ids, winner)
 
     const K = 32;
     const scoreA = winner === 'A' ? 1 : 0;
-    const pointChange = Math.round(K * (scoreA - expectedA));
+    const pointChange = Math.abs(Math.round(K * (scoreA - expectedA)));
 
     const winnerIds = winner === 'A' ? teamA_ids : teamB_ids;
     const loserIds  = winner === 'A' ? teamB_ids : teamA_ids;
