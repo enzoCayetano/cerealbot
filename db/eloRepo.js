@@ -100,7 +100,7 @@ function updateRanks()
 function sortTopUsers()
 {
     const users = db.prepare(`
-        SELECT user_id AS id, username, elo FROM users ORDER BY elo DESC   
+        SELECT user_id AS id, username, elo, wins, losses, games_played FROM users ORDER BY elo DESC   
     `).all();
     
     return users;
