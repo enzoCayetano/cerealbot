@@ -7,3 +7,4 @@
 - Better rank/profile display
 - change queue to display individual elo
 - add command to wipe/delete database
+- team captain functionality
