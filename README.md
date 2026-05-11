@@ -12,8 +12,9 @@
 - ~~rename rank to profile~~ completed
 - ~~when registering, change server nickname to username in db~~ completed
 - ~~add MR ranks to profile and DB~~ completed
+- ~~add outline to tier~~
 - replace match embeds with canvas images
 - team captain functionality
-  test
+- # REWRITE USING MR API
 
 test with joe to see if admin commands work on end user
