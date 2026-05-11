@@ -10,9 +10,9 @@
 - ~~match history~~ completed
 - ~~better match history display using canvas~~ completed
 - ~~rename rank to profile~~ completed
-- add MR ranks to profile and DB
+- ~~when registering, change server nickname to username in db~~ completed
+- ~~add MR ranks to profile and DB~~ completed
 - replace match embeds with canvas images
 - team captain functionality
-- ~~when registering, change server nickname to username in db~~ completed
 
 test with joe to see if admin commands work on end user
