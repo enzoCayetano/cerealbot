@@ -15,6 +15,7 @@
 - ~~add outline to tier~~
 - replace match embeds with canvas images
 - team captain functionality
+- add mentions/announcements to users who rank up
 - # REWRITE USING MR API
 
 test with joe to see if admin commands work on end user
