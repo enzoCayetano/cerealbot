@@ -22,22 +22,19 @@ function drawRoundRect(ctx, x, y, w, h, r) {
 function drawStatBox(ctx, x, y, label, value, accent = '#5865F2') {
     const bw = 120, bh = 60, br = 10;
 
-    // Box background
     ctx.fillStyle = 'rgba(255,255,255,0.05)';
     drawRoundRect(ctx, x, y, bw, bh, br);
     ctx.fill();
 
-    // Accent top border
     ctx.fillStyle = accent;
     drawRoundRect(ctx, x, y, bw, 3, 2);
     ctx.fill();
 
-    // Label
     ctx.fillStyle = '#8b8fa8';
     ctx.font = '11px "Outfit"';
+    ctx.textAlign = 'left';
     ctx.fillText(label.toUpperCase(), x + 12, y + 20);
 
-    // Value
     ctx.fillStyle = '#ffffff';
     ctx.font = 'bold 20px "Outfit"';
     ctx.fillText(value, x + 12, y + 46);
@@ -72,6 +69,59 @@ async function generateProfileCard(profile, avatarURL) {
     ctx.fillStyle = glow;
     ctx.fillRect(0, 0, W, H);
 
+    // ── Rank & logo (draw before text so glow doesn't bleed) ────
+    const rank = getRankWithOAA(profile.elo, profile.rank);
+    const rankColor = getRankColor(rank.name);
+
+    const LOGO_SIZE = 140;
+    const logoX = W - LOGO_SIZE - 20;
+    const logoY = 8;
+
+    const LOGO_FILES = {
+        'Bronze': 'bronze', 'Silver': 'silver', 'Gold': 'gold',
+        'Platinum': 'platinum', 'Diamond': 'diamond', 'Grandmaster': 'grandmaster',
+        'Celestial': 'celestial', 'Eternity': 'eternity', 'One Above All': 'oaa',
+    };
+    const tier = Object.keys(LOGO_FILES).find(t => rank.name.startsWith(t));
+    const tierFile = LOGO_FILES[tier] ?? 'bronze';
+
+    let rankImg = null;
+    try {
+        rankImg = await loadImage(path.join(__dirname, `../assets/ranks/${tierFile}.png`));
+    } catch {}
+
+    if (rankImg) {
+        // Rank glow behind logo
+        ctx.shadowColor = rankColor;
+        ctx.shadowBlur = 28;
+        ctx.drawImage(rankImg, logoX, logoY, LOGO_SIZE, LOGO_SIZE);
+        ctx.shadowBlur = 0;
+    }
+
+    // Division label (III / II / I) below logo
+    const parts = rank.name.split(' ');
+    const division = ['III', 'II', 'I'].includes(parts[parts.length - 1])
+        ? parts[parts.length - 1]
+        : null;
+
+    ctx.textAlign = 'center';
+    const logoCenterX = logoX + LOGO_SIZE / 2;
+
+    if (division) {
+        ctx.font = 'bold 18px "Outfit"';
+        ctx.fillStyle = rankColor;
+        ctx.shadowColor = rankColor;
+        ctx.shadowBlur = 8;
+        ctx.fillText(division, logoCenterX, logoY + LOGO_SIZE - 25);
+        ctx.shadowBlur = 0;
+    }
+
+    // Tier name below division
+    // ctx.font = '11px "Outfit"';
+    // ctx.fillStyle = '#8b8fa8';
+    // const tierLabel = division ? parts.slice(0, -1).join(' ') : rank.name;
+    // ctx.fillText(tierLabel, logoCenterX, logoY + LOGO_SIZE - 100);
+
     // ── Avatar ───────────────────────────────────────────────────
     const AVATAR_SIZE = 90;
     const ax = 30, ay = (H - AVATAR_SIZE) / 2 - 50;
@@ -79,7 +129,6 @@ async function generateProfileCard(profile, avatarURL) {
     try {
         const avatar = await loadImage(avatarURL + '?size=256');
 
-        // Glowing ring
         ctx.shadowColor = '#5865F2';
         ctx.shadowBlur = 20;
         ctx.strokeStyle = '#5865F2';
@@ -89,7 +138,6 @@ async function generateProfileCard(profile, avatarURL) {
         ctx.stroke();
         ctx.shadowBlur = 0;
 
-        // Clip avatar to circle
         ctx.save();
         ctx.beginPath();
         ctx.arc(ax + AVATAR_SIZE / 2, ay + AVATAR_SIZE / 2, AVATAR_SIZE / 2, 0, Math.PI * 2);
@@ -97,7 +145,6 @@ async function generateProfileCard(profile, avatarURL) {
         ctx.drawImage(avatar, ax, ay, AVATAR_SIZE, AVATAR_SIZE);
         ctx.restore();
     } catch {
-        // Fallback circle if avatar fails
         ctx.fillStyle = '#5865F2';
         ctx.beginPath();
         ctx.arc(ax + AVATAR_SIZE / 2, ay + AVATAR_SIZE / 2, AVATAR_SIZE / 2, 0, Math.PI * 2);
@@ -106,10 +153,19 @@ async function generateProfileCard(profile, avatarURL) {
 
     // ── Name & ELO ───────────────────────────────────────────────
     const textX = ax + AVATAR_SIZE + 24;
+    // Cap text width so it doesn't run into the logo
+    const maxTextW = logoX - textX - 16;
+
+    ctx.textAlign = 'left';
 
     ctx.fillStyle = '#ffffff';
     ctx.font = 'bold 28px "Outfit"';
-    ctx.fillText(profile.username, textX, ay + 32);
+    // Truncate username if too long
+    let username = profile.username;
+    while (ctx.measureText(username).width > maxTextW && username.length > 1)
+        username = username.slice(0, -1);
+    if (username !== profile.username) username += '…';
+    ctx.fillText(username, textX, ay + 32);
 
     ctx.fillStyle = '#8b8fa8';
     ctx.font = '14px "Outfit"';
@@ -128,7 +184,7 @@ async function generateProfileCard(profile, avatarURL) {
     ctx.fillStyle = '#a5b4fc';
     ctx.fillText(eloText, textX + 10, ay + 79);
 
-    // Streak badge (only if streak >= 2)
+    // Streak badge
     if (profile.current_streak >= 2) {
         const streakText = `Win Streak - ${profile.current_streak}`;
         ctx.font = 'bold 13px "Outfit"';
@@ -149,16 +205,16 @@ async function generateProfileCard(profile, avatarURL) {
         : '0.0%';
 
     const stats = [
-        { label: 'Wins',     value: `${profile.wins}`,          accent: '#57F287' },
-        { label: 'Losses',   value: `${profile.losses}`,        accent: '#ED4245' },
-        { label: 'Played',   value: `${profile.games_played}`,  accent: '#5865F2' },
-        { label: 'Winrate',  value: winrate,                    accent: '#FEE75C' },
-        { label: 'Peak ELO', value: `${profile.highest_elo}`,   accent: '#EB459E' },
+        { label: 'Wins',     value: `${profile.wins}`,         accent: '#57F287' },
+        { label: 'Losses',   value: `${profile.losses}`,       accent: '#ED4245' },
+        { label: 'Played',   value: `${profile.games_played}`, accent: '#5865F2' },
+        { label: 'Winrate',  value: winrate,                   accent: '#FEE75C' },
+        { label: 'Peak ELO', value: `${profile.highest_elo}`,  accent: '#EB459E' },
     ];
 
     const boxW = 80, gap = 60;
     const totalW = stats.length * boxW + (stats.length - 1) * gap;
-    let bx = (W - totalW) / 3; // center the row
+    let bx = (W - totalW) / 3;
     const by = H - 100;
 
     for (const stat of stats) {
