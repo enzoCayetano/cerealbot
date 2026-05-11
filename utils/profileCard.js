@@ -1,4 +1,5 @@
 const { createCanvas, loadImage, GlobalFonts } = require('@napi-rs/canvas');
+const { getRankWithOAA, getRankColor, getRankProgress } = require('./ranks');
 const path = require('path');
 GlobalFonts.registerFromPath(path.join(__dirname, '../assets/fonts/Outfit-Bold.ttf'), 'Outfit');
 
