@@ -2,7 +2,7 @@ name: Deploy to Daki
 on:
   push:
     branches:
-      - main  # Make sure this matches your branch name
+      - main # Make sure this matches your branch name (main or master)
 
 jobs:
   deploy:
@@ -12,12 +12,12 @@ jobs:
         uses: actions/checkout@v4
 
       - name: SFTP Deploy
-        uses: samuelmeuli/action-sftp-deploy@v1
+        uses: wlixcc/SFTP-Deploy-Action@v1.2.4
         with:
-          host: ${{ secrets.SFTP_HOST }}
-          port: ${{ secrets.SFTP_PORT }}
           username: ${{ secrets.SFTP_USERNAME }}
+          server: ${{ secrets.SFTP_HOST }}
+          port: ${{ secrets.SFTP_PORT }}
           password: ${{ secrets.SFTP_PASSWORD }}
-          local_path: './*'        # Uploads everything in your repo
-          remote_path: '/'         # Uploads to the root of your Daki server
-          delete_remote_files: false # Set to true if you want to wipe old files on every push
+          local_path: "./*" # Uploads everything from your repo
+          remote_path: "/" # Puts it in the root folder of Daki
+          sftp_only: true # Important for Pterodactyl panels
