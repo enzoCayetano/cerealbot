@@ -2,7 +2,7 @@ name: Deploy to Daki
 on:
   push:
     branches:
-      - main  # Change this to 'master' if that is your branch name
+      - main  # Make sure this matches your branch name
 
 jobs:
   deploy:
@@ -11,9 +11,13 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Upload to Daki Panel
-        uses: pte-actions/pterodactyl-upload@v1
+      - name: SFTP Deploy
+        uses: samuelmeuli/action-sftp-deploy@v1
         with:
-          panel-url: "https://panel.daki.cc"
-          api-key: ${{ secrets.DAKI_API_KEY }}
-          server-id: ${{ secrets.DAKI_SERVER_ID }}
+          host: ${{ secrets.SFTP_HOST }}
+          port: ${{ secrets.SFTP_PORT }}
+          username: ${{ secrets.SFTP_USERNAME }}
+          password: ${{ secrets.SFTP_PASSWORD }}
+          local_path: './*'        # Uploads everything in your repo
+          remote_path: '/'         # Uploads to the root of your Daki server
+          delete_remote_files: false # Set to true if you want to wipe old files on every push
