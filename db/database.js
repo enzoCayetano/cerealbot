@@ -6,8 +6,8 @@ db.exec(`
     CREATE TABLE IF NOT EXISTS users (
         user_id TEXT PRIMARY KEY,
         username TEXT,
-        elo INTEGER NOT NULL DEFAULT 1000,
-        highest_elo INTEGER DEFAULT 1000,
+        elo INTEGER NOT NULL DEFAULT 0,
+        highest_elo INTEGER DEFAULT 0,
         rank INTEGER DEFAULT NULL,
         wins INTEGER DEFAULT 0,
         losses INTEGER DEFAULT 0,

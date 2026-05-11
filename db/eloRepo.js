@@ -15,7 +15,7 @@ function registerUser(userId, username)
     if (existing) return { success: false, reason: 'already_registered' };
 
     db.prepare(`
-        INSERT INTO users (user_id, username, elo) VALUES (?, ?, 1000)
+        INSERT INTO users (user_id, username, elo) VALUES (?, ?, 0)
     `).run(userId, username);
 
     return { success: true };
@@ -142,7 +142,7 @@ function getUserMatchHistory(userId, limit = 10)
 
 function updateMatchResults(teamA_ids, teamB_ids, winner) 
 {
-    const VARIANCE = 5;
+    const VARIANCE = 3;
     const STREAK_BONUS_PER_LEVEL = 0.05; // 5% per streak level
     const STREAK_CAP = 3;
 
@@ -154,7 +154,7 @@ function updateMatchResults(teamA_ids, teamB_ids, winner)
         SELECT user_id, elo, current_streak FROM users WHERE user_id IN (${placeholders})
     `).all(...allIds);
 
-    const getPlayer = (id) => players.find(p => p.user_id === id) ?? { elo: 1000, current_streak: 0 };
+    const getPlayer = (id) => players.find(p => p.user_id === id) ?? { elo: 0, current_streak: 0 };
 
     // calculate average team elo
     const avgA = teamA_ids.reduce((sum, id) => sum + getPlayer(id).elo, 0) / teamA_ids.length;
