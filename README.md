@@ -14,5 +14,6 @@
 - ~~add MR ranks to profile and DB~~ completed
 - replace match embeds with canvas images
 - team captain functionality
+  test
 
 test with joe to see if admin commands work on end user
