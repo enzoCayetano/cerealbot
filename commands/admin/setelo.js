@@ -3,7 +3,7 @@ const eloRepo = require('../../db/eloRepo');
 
 module.exports = {
     data: new SlashCommandBuilder()
-        .setName('setelo')
+        .setName('set-elo')
         .setDescription('Set a user\'s ELO directly.')
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
         .addUserOption(option =>

@@ -68,6 +68,10 @@ function setElo(userId, elo)
     `).run(elo, userId);
 }
 
+function setHighestElo(userId, elo) {
+    db.prepare(`UPDATE users SET highest_elo = ? WHERE user_id = ?`).run(elo, userId);
+}
+
 function addElo(userId, delta, reason = null)
 {
     ensureUser(userId);
@@ -252,10 +256,12 @@ module.exports = {
     getElo,
     getUserStats,
     setElo,
+    setHighestElo,
     addElo,
     sortTopUsers,
     updateMatchResults,
     getRecentMatches,
     getMatchPlayers,
     getUserMatchHistory,
+    updateRanks,
 };
