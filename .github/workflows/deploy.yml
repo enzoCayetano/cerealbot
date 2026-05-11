@@ -1,0 +1,23 @@
+name: Deploy to Daki
+on:
+  push:
+    branches:
+      - main  # Make sure this matches your branch name
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: SFTP Deploy
+        uses: samuelmeuli/action-sftp-deploy@v1
+        with:
+          host: ${{ secrets.SFTP_HOST }}
+          port: ${{ secrets.SFTP_PORT }}
+          username: ${{ secrets.SFTP_USERNAME }}
+          password: ${{ secrets.SFTP_PASSWORD }}
+          local_path: './*'        # Uploads everything in your repo
+          remote_path: '/'         # Uploads to the root of your Daki server
+          delete_remote_files: false # Set to true if you want to wipe old files on every push
