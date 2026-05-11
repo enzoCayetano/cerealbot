@@ -1,0 +1,19 @@
+name: Deploy to Daki
+on:
+  push:
+    branches:
+      - main  # Change this to 'master' if that is your branch name
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Upload to Daki Panel
+        uses: pte-actions/pterodactyl-upload@v1
+        with:
+          panel-url: "https://panel.daki.cc"
+          api-key: ${{ secrets.DAKI_API_KEY }}
+          server-id: ${{ secrets.DAKI_SERVER_ID }}
