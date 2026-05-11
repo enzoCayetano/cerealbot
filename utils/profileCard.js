@@ -109,10 +109,23 @@ async function generateProfileCard(profile, avatarURL) {
 
     if (division) {
         ctx.font = 'bold 18px "Outfit"';
+        ctx.textAlign = 'center'; // Ensure alignment is set
+        
+        const textY = logoY + LOGO_SIZE - 25;
+
+        // --- 1. Set Outline Styles ---
+        ctx.strokeStyle = '#ffffff'; // Change to your preferred outline color (e.g., black)
+        ctx.lineWidth = 1;           // Thickness of the outline
+        ctx.lineJoin = 'round';      // Prevents sharp spikes on corners of letters
+        ctx.strokeText(division, logoCenterX, textY);
+
+        // --- 2. Set Fill Styles (existing logic) ---
         ctx.fillStyle = rankColor;
         ctx.shadowColor = rankColor;
         ctx.shadowBlur = 8;
-        ctx.fillText(division, logoCenterX, logoY + LOGO_SIZE - 25);
+        ctx.fillText(division, logoCenterX, textY);
+        
+        // Reset shadow for subsequent drawings
         ctx.shadowBlur = 0;
     }
 
